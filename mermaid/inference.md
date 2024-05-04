@@ -14,7 +14,7 @@ C --> C2(Methods for sampling AE latent space)
 C2 --> C21(Allows for generation of new samples)
 %% GAN
 D --> D1(Generate new samples from random noise)
-E --> E1(Generate new samples from random noise)
+E --> D1
 
 E1 --> F(Image saver)
 D1 --> F
