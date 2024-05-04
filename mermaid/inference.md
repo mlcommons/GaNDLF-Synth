@@ -16,8 +16,7 @@ C2 --> C21(Allows for generation of new samples)
 D --> D1(Generate new samples from random noise)
 E --> D1
 
-E1 --> F(Image saver)
-D1 --> F
+D1 --> F(Image saver)
 C21 --> F
 C11 --> F
 F --> G(Save generated images)
