@@ -1,0 +1,20 @@
+[tool.black]
+line-length = 88
+extend-exclude = '''
+(
+  testing/data
+  | .*.md
+)
+'''
+skip_magic_trailing_comma = true
+
+[tool.coverage.run]
+source = ["./gandlf_synth"]
+omit = [
+  ".github/*",
+  ".devcontainer/*",
+  "./setup.py",
+  "./gandlf_*",
+  "./testing/conftest.py",
+  "./tutorials/*",
+]
