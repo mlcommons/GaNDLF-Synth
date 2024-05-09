@@ -14,7 +14,7 @@ omit = [
   ".github/*",
   ".devcontainer/*",
   "./setup.py",
-  "./gandlf_*",
+  "./gandlf_synth*",
   "./testing/conftest.py",
   "./tutorials/*",
 ]
