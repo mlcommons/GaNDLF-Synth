@@ -133,7 +133,7 @@ class LabeledDataExtractor(CSVDataExtractor):
     ├── class1
     │   ├── image1.nii.gz
     │   ├── image2.nii.gz
-        ├── class2
+    ├── class2
     │   ├── image3.nii.gz
     │   ├── image4.nii.gz
     etc.
