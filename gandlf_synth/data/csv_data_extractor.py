@@ -13,9 +13,17 @@ class CSVDataExtractor(ABC):
     standard GaNDLF data format in a CSV.
     """
 
-    def __init__(self, dataset_path: str) -> None:
+    def __init__(self, dataset_path: str, channel_id: str) -> None:
+        """
+        Initialize the CSVDataExtractor object.
+
+        Args:
+            dataset_path (str): The path to the dataset.
+            channel_id (str): The channel ID to identify the sample (e.g. slice.nii.gz).
+        """
         super().__init__()
         self.dataset_path = Path(dataset_path)
+        self.channel_id = channel_id
 
     @abstractmethod
     def _extract_data(self, dataset_path: Path) -> pd.DataFrame:
