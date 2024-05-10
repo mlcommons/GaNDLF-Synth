@@ -2,7 +2,7 @@ import os
 from glob import glob
 from pathlib import Path
 from abc import ABC, abstractmethod
-from typing import List
+from typing import List, Union
 import pandas as pd
 
 
@@ -17,23 +17,14 @@ def append_row_to_dataframe(dataframe: pd.DataFrame, row: list):
     dataframe.loc[len(dataframe)] = row
 
 
-def find_files_in_dir(directory: str, channel_id: str) -> List[str]:
+def extend_filenames_to_absolute_paths(filenames: List[str]) -> List[str]:
     """
-    Find all files in a directory that contain the channel ID. Sorts
-    them based on the parent directory name.
+    Automatically find the absolute path of the files.
 
     Args:
-        directory (str): The path to the directory.
-        channel_id (str): The channel ID.
-
-    Returns:
-        List[str]: A list of files that contain the channel ID.
+        filenames (List[str]): The list of filenames.
     """
-
-    channel_files = glob(f"{directory}/**/*{channel_id}", recursive=True)
-    assert channel_files, f"No files found for channel {channel_id}"
-    channel_files.sort(key=lambda x: os.path.basename(os.path.dirname(x)))
-    return channel_files
+    return [os.path.abspath(filename) for filename in filenames]
 
 
 class CSVDataExtractor(ABC):
@@ -87,8 +78,18 @@ class UnlabeledDataExtractor(CSVDataExtractor):
     """
     Extractor for the case when the user operates in unconditional mode.
     Reads all image files from a given directory and stores them in a CSV file
-    in GaNDLF standard format.
-
+    in GaNDLF standard format. As there is possibility of multiple channels,
+    the following directory structure is assumed:
+    dataset
+    ├── subject1
+    │   ├── t2w.nii.gz
+    │   ├── t1.nii.gz
+    ├── subject2
+    │   ├── t2w.nii.gz
+    │   ├── t1.nii.gz
+    etc.
+    Additional channels are not necessary. If the user provides multiple channel IDs,
+    the extractor will demand that all channels are present in each subject directory.
     """
 
     def _extract_data(self, dataset_path: Path) -> pd.DataFrame:
@@ -106,20 +107,37 @@ class UnlabeledDataExtractor(CSVDataExtractor):
         )
 
         # find all image files in the dataset based on the channel IDs
-        # TODO this works for multiple channels, but assumes the same
-        # number of files for each channel. Need to think if we really
-        # need to support multiple channels.
-        # files_for_channels = {
+        # TODO how we decide if we are saving the absolute path or relative path?
+
+        for dirpath, _, files in os.walk(dataset_path):
+            row = []
+            if files:
+                channels = [
+                    os.path.join(dirpath, file)
+                    for file in files
+                    if any(channel_id in file for channel_id in self.channel_id_list)
+                ]
+                assert len(channels) == len(self.channel_id_list), (
+                    f"Missing channels in {dirpath}. "
+                    f"Expected channels: {self.channel_id_list}. "
+                    f"Found channels: {files}"
+                )
+                row.extend(channels)
+                append_row_to_dataframe(dataframe, row)
+        # channel_files_dict = {
         #     channel_id: find_files_in_dir(dataset_path, channel_id)
         #     for channel_id in self.channel_id_list
         # }
-        # rows = list((zip(*files_for_channels.values())))
-        # rows = [list(row) for row in rows]
-        # [append_row_to_dataframe(dataframe, row) for row in rows]
 
+        # channel_files_dict_abs = {
+        #     channel_id: extend_filenames_to_absolute_paths(channel_files)
+        #     for channel_id, channel_files in channel_files_dict.items()
+        # }
+        # rows = list(zip(*channel_files_dict_abs.values()))
+        # [append_row_to_dataframe(dataframe, row) for row in rows]
         # for now I assume we accept only one channel
-        files = find_files_in_dir(dataset_path, self.channel_id)
-        [append_row_to_dataframe(dataframe, [file]) for file in files]
+        # files = find_files_in_dir(dataset_path, self.channel_id)
+        # [append_row_to_dataframe(dataframe, [file]) for file in files]
         return dataframe
 
 
@@ -127,15 +145,17 @@ class LabeledDataExtractor(CSVDataExtractor):
     """
     Extractor for the case when the user operates in conditional mode.
     Reads all image files and creates labels for them. The labels are
-    extracted from the names of directories containing the image files.
+    determined based on the demanded directory structure.
     Example directory structure:
     dataset
     ├── class1
-    │   ├── image1.nii.gz
-    │   ├── image2.nii.gz
+    │   ├── subject1
+    │   │   ├── t2w.nii.gz
+    │   │   ├── t1.nii.gz
     ├── class2
-    │   ├── image3.nii.gz
-    │   ├── image4.nii.gz
+    │   ├── subject2
+    │   │   ├── t2w.nii.gz
+    │   │   ├── t1.nii.gz
     etc.
     We require user to place images in directories named after the class.
     """
@@ -150,37 +170,62 @@ class LabeledDataExtractor(CSVDataExtractor):
         Returns:
             pd.DataFrame: The extracted data.
         """
+
+        def determine_label_from_path(path: Union[Path, str]) -> str:
+            """
+            Determine the label from the path. Assumes that the label is
+            the name of the parent directory of the parent directory.
+
+            Args:
+                path (Union[Path,str]): The path to the file.
+
+            Returns:
+                str: The label.
+            """
+            if isinstance(path, str):
+                path = Path(path)
+            return path.parent.name
+
         dataframe = pd.DataFrame(
             columns=[f"Channel_{i}" for i in range(len(self.channel_id_list))]
             + ["Label"]
             + ["LabelMapping"]
         )
-        files = find_files_in_dir(dataset_path, self.channel_id)
-        unique_dirnames = list(set([Path(file).parent.name for file in files]))
-        dirnames_to_labels = {dirname: i for i, dirname in enumerate(unique_dirnames)}
-        [
-            append_row_to_dataframe(
-                dataframe,
-                [
-                    file,
-                    dirnames_to_labels[Path(file).parent.name],
-                    Path(file).parent.name,
-                ],
-            )
-            for file in files
-        ]
+        class_names = os.listdir(dataset_path)
+        class_to_id_mapping = {
+            class_name: i for i, class_name in enumerate(class_names)
+        }
+        for dirpath, _, files in os.walk(dataset_path):
+            row = []
+            if files:
+                channels = [
+                    os.path.join(dirpath, file)
+                    for file in files
+                    if any(channel_id in file for channel_id in self.channel_id_list)
+                ]
+                assert len(channels) == len(self.channel_id_list), (
+                    f"Missing channels in {dirpath}. "
+                    f"Expected channels: {self.channel_id_list}. "
+                    f"Found channels: {files}"
+                )
+                label = determine_label_from_path(dirpath)
+                label_id = class_to_id_mapping[label]
+                row.extend(channels)
+                row.append(label)
+                row.append(label_id)
+                append_row_to_dataframe(dataframe, row)
         return dataframe
 
 
 if __name__ == "__main__":
     dataset_path = "testing/data/unlabeled"
-    channel_id = ".nii.gz"
+    channel_id = "t2w.nii.gz,t1.nii.gz"
     output_path = "output.csv"
     extractor = UnlabeledDataExtractor(dataset_path, channel_id)
     extractor.extract_csv_data(output_path)
 
     dataset_path = "testing/data/labeled"
-    channel_id = ".nii.gz"
+    channel_id = "t1.nii.gz"
     output_path = "output_labeled.csv"
     extractor = LabeledDataExtractor(dataset_path, channel_id)
     extractor.extract_csv_data(output_path)
