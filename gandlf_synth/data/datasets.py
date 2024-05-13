@@ -5,13 +5,14 @@ from torchio.transforms import Compose
 import SimpleITK as sitk
 import torchio as tio
 import numpy as np
+from torch.utils.data import Dataset
 
 
-# Should we just inherit torch dataset? We have ou
-class SynthesisDataset(ABC):
+# Can we just inherit from the torch dataset? Or do we need to define
+# out own abstract class?
+class SynthesisDataset(Dataset):
     """
     Base abstraction for a synthesis dataset.
-
     """
 
     def __init__(self, csv_path: str, transforms: Optional[Compose] = None) -> None:
@@ -23,6 +24,9 @@ class SynthesisDataset(ABC):
     @abstractmethod
     def __getitem__(self, index):
         pass
+
+    def __len__(self):
+        return len(self.csv_data)
 
 
 class UnlabeledSynthesisDataset(SynthesisDataset):
@@ -63,3 +67,4 @@ if __name__ == "__main__":
     unlabeled_dataset = UnlabeledSynthesisDataset("output.csv")
     image = unlabeled_dataset[0]
     print(image.shape)
+    print(len(unlabeled_dataset))
