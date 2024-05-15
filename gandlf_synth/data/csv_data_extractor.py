@@ -6,17 +6,6 @@ from typing import List, Union
 import pandas as pd
 
 
-def append_row_to_dataframe(dataframe: pd.DataFrame, row: list):
-    """
-    Append a row to the dataframe inplace.
-
-    Args:
-        dataframe (pd.DataFrame): The dataframe to which the row will be appended.
-        row (list): The row to be appended.
-    """
-    dataframe.loc[len(dataframe)] = row
-
-
 def extend_filenames_to_absolute_paths(filenames: List[str]) -> List[str]:
     """
     Automatically find the absolute path of the files.
@@ -108,36 +97,27 @@ class UnlabeledDataExtractor(CSVDataExtractor):
 
         # find all image files in the dataset based on the channel IDs
         # TODO how we decide if we are saving the absolute path or relative path?
-
+        # for now I am saving the absolute path
+        rows = []
         for dirpath, _, files in os.walk(dataset_path):
-            row = []
             if files:
-                channels = [
+                channels_row_relative = [
                     os.path.join(dirpath, file)
                     for file in files
                     if any(channel_id in file for channel_id in self.channel_id_list)
                 ]
-                assert len(channels) == len(self.channel_id_list), (
+                channels_row_abs = extend_filenames_to_absolute_paths(
+                    channels_row_relative
+                )
+                assert len(channels_row_abs) == len(self.channel_id_list), (
                     f"Missing channels in {dirpath}. "
                     f"Expected channels: {self.channel_id_list}. "
                     f"Found channels: {files}"
                 )
-                row.extend(channels)
-                append_row_to_dataframe(dataframe, row)
-        # channel_files_dict = {
-        #     channel_id: find_files_in_dir(dataset_path, channel_id)
-        #     for channel_id in self.channel_id_list
-        # }
-
-        # channel_files_dict_abs = {
-        #     channel_id: extend_filenames_to_absolute_paths(channel_files)
-        #     for channel_id, channel_files in channel_files_dict.items()
-        # }
-        # rows = list(zip(*channel_files_dict_abs.values()))
-        # [append_row_to_dataframe(dataframe, row) for row in rows]
-        # for now I assume we accept only one channel
-        # files = find_files_in_dir(dataset_path, self.channel_id)
-        # [append_row_to_dataframe(dataframe, [file]) for file in files]
+                rows.append(channels_row_abs)
+        dataframe = pd.DataFrame(
+            rows, columns=[f"Channel_{i}" for i in range(len(self.channel_id_list))]
+        )
         return dataframe
 
 
@@ -186,34 +166,36 @@ class LabeledDataExtractor(CSVDataExtractor):
                 path = Path(path)
             return path.parent.name
 
-        dataframe = pd.DataFrame(
-            columns=[f"Channel_{i}" for i in range(len(self.channel_id_list))]
-            + ["Label"]
-            + ["LabelMapping"]
-        )
         class_names = os.listdir(dataset_path)
         class_to_id_mapping = {
             class_name: i for i, class_name in enumerate(class_names)
         }
+        rows = []
         for dirpath, _, files in os.walk(dataset_path):
-            row = []
             if files:
-                channels = [
+                channels_row_relative = [
                     os.path.join(dirpath, file)
                     for file in files
                     if any(channel_id in file for channel_id in self.channel_id_list)
                 ]
-                assert len(channels) == len(self.channel_id_list), (
+                channels_row_abs = extend_filenames_to_absolute_paths(
+                    channels_row_relative
+                )
+                assert len(channels_row_abs) == len(self.channel_id_list), (
                     f"Missing channels in {dirpath}. "
                     f"Expected channels: {self.channel_id_list}. "
                     f"Found channels: {files}"
                 )
                 label = determine_label_from_path(dirpath)
                 label_id = class_to_id_mapping[label]
-                row.extend(channels)
-                row.append(label)
-                row.append(label_id)
-                append_row_to_dataframe(dataframe, row)
+                channels_row_abs.extend([label, label_id])
+                rows.append(channels_row_abs)
+        dataframe = pd.DataFrame(
+            rows,
+            columns=[f"Channel_{i}" for i in range(len(self.channel_id_list))]
+            + ["Label"]
+            + ["LabelMapping"],
+        )
         return dataframe
 
 
@@ -225,7 +207,7 @@ if __name__ == "__main__":
     extractor.extract_csv_data(output_path)
 
     dataset_path = "testing/data/labeled"
-    channel_id = "t1.nii.gz"
+    channel_id = "t1.nii.gz,t2w.nii.gz"
     output_path = "output_labeled.csv"
     extractor = LabeledDataExtractor(dataset_path, channel_id)
     extractor.extract_csv_data(output_path)
