@@ -201,13 +201,13 @@ class LabeledDataExtractor(CSVDataExtractor):
 
 if __name__ == "__main__":
     dataset_path = "testing/data/unlabeled"
-    channel_id = "t2w.nii.gz,t1.nii.gz"
-    output_path = "output.csv"
+    channel_id = "t2w.nii.gz"
+    output_path = "testing/unlabeled_data.csv"
     extractor = UnlabeledDataExtractor(dataset_path, channel_id)
     extractor.extract_csv_data(output_path)
 
     dataset_path = "testing/data/labeled"
     channel_id = "t1.nii.gz,t2w.nii.gz"
-    output_path = "output_labeled.csv"
+    output_path = "testing/labeled_data.csv"
     extractor = LabeledDataExtractor(dataset_path, channel_id)
     extractor.extract_csv_data(output_path)

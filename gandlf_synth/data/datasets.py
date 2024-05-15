@@ -6,6 +6,7 @@ import SimpleITK as sitk
 import torchio as tio
 import numpy as np
 from torch.utils.data import Dataset
+from GANDLF.data.preprocessing import global_preprocessing_dict
 
 
 # Can we just inherit from the torch dataset? Or do we need to define
@@ -45,26 +46,17 @@ class UnlabeledSynthesisDataset(SynthesisDataset):
         # check if there are multible channel columns (named Channel_n)
         channel_columns = [col for col in self.csv_data.columns if "Channel_" in col]
         assert len(channel_columns) > 0, "No channel columns found in CSV."
-        if len(channel_columns) > 1:
-            # if there are multiple channel columns, we need to stack them
-            channels = [
-                sitk.ReadImage(self.csv_data.loc[index, channel_column])
-                for channel_column in channel_columns
-            ]
-            # we obtain the arrays of shape (num_channels, height, width, depth) depth
-            # is optional in 3D images
-            channels_array = np.stack(
-                [sitk.GetArrayFromImage(channel) for channel in channels], axis=0
-            )
-            return channels_array
-        channel_columns = channel_columns[0]
-        channels = sitk.ReadImage(self.csv_data.loc[index, channel_columns])
-        channels_array = sitk.GetArrayFromImage(channels)
-        return channels_array
+
+        channel_file_paths = [
+            self.csv_data.loc[index, channel_column]
+            for channel_column in channel_columns
+        ]
+        channels = sitk.ReadImage(channel_file_paths)
+        return channels
 
 
 if __name__ == "__main__":
-    unlabeled_dataset = UnlabeledSynthesisDataset("output.csv")
+    unlabeled_dataset = UnlabeledSynthesisDataset("./testing/unlabeled_data.csv")
     image = unlabeled_dataset[0]
     print(image.shape)
     print(len(unlabeled_dataset))
