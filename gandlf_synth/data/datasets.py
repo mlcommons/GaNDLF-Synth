@@ -1,12 +1,10 @@
-from abc import ABC, abstractmethod
+from abc import abstractmethod
 from typing import Optional
 import pandas as pd
-from torchio.transforms import Compose
-import SimpleITK as sitk
+
 import torchio as tio
-import numpy as np
-from torch.utils.data import Dataset
-from GANDLF.data.preprocessing import global_preprocessing_dict
+from torchio.transforms import Compose
+from torch.utils.data import Dataset, DataLoader
 
 
 # Can we just inherit from the torch dataset? Or do we need to define
@@ -51,12 +49,26 @@ class UnlabeledSynthesisDataset(SynthesisDataset):
             self.csv_data.loc[index, channel_column]
             for channel_column in channel_columns
         ]
-        channels = sitk.ReadImage(channel_file_paths)
-        return channels
+        tio_scalar_image = tio.ScalarImage(channel_file_paths)
+
+        if self.transforms:
+            tio_scalar_image = self.transforms(tio_scalar_image)
+        # TODO think if this is valid
+        image = tio_scalar_image.data.squeeze(-1)  # if 2D the last dim is 1
+        return image
 
 
 if __name__ == "__main__":
-    unlabeled_dataset = UnlabeledSynthesisDataset("./testing/unlabeled_data.csv")
+    # some basic testing, debugging purposes
+    from GANDLF.data.preprocessing import global_preprocessing_dict
+
+    example_transforms = Compose([global_preprocessing_dict["rescale"]()])
+    unlabeled_dataset = UnlabeledSynthesisDataset(
+        "./testing/unlabeled_data.csv", transforms=example_transforms
+    )
     image = unlabeled_dataset[0]
-    print(image.shape)
-    print(len(unlabeled_dataset))
+
+    dataloader = DataLoader(unlabeled_dataset, batch_size=1, shuffle=True)
+    for batch in dataloader:
+        print(batch[0].shape)
+        break
