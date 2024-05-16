@@ -1,42 +1,9 @@
+from dataloader_defaults import DATALOADER_CONFIG_DEFAULTS
+
 REQUIRED_PARAMETERS = ["model_config", "modality"]
 
-TRAIN_LOADER_CONFIG = {
-    "num_workers": 0,
-    "pin_memory": False,
-    "drop_last": False,
-    "shuffle": True,
-}
 
-VALIDATION_LOADER_CONFIG = {
-    "num_workers": 0,
-    "pin_memory": False,
-    "drop_last": False,
-    "shuffle": False,
-}
-
-TEST_LOADER_CONFIG = {
-    "num_workers": 0,
-    "pin_memory": False,
-    "drop_last": False,
-    "shuffle": False,
-}
-
-INFER_LOADER_CONFIG = {
-    "num_workers": 0,
-    "pin_memory": False,
-    "drop_last": False,
-    "shuffle": False,
-}
-
-DATALOADER_CONFIG = {
-    "train": TRAIN_LOADER_CONFIG,
-    "validation": VALIDATION_LOADER_CONFIG,
-    "test": TEST_LOADER_CONFIG,
-    "infer": INFER_LOADER_CONFIG,
-}
-
-
-PARAMETER_DEFAULTS = {
+BASIC_PARAMETER_DEFAULTS = {
     "amp": False,  # automatic mixed precision
     "verbose": False,  # general application verbosity
     "save_training": False,  # save outputs during training
@@ -53,5 +20,5 @@ PARAMETER_DEFAULTS = {
     "data_preprocessing": {},  # default data preprocessing
     "data_augmentation": {},  # default data augmentation
     "previous_parameters": None,  # previous parameters to be used for resuming training and perform sanity checking
-    "dataloader_config": DATALOADER_CONFIG,  # dataloader configuration
+    "dataloader_config": DATALOADER_CONFIG_DEFAULTS,  # dataloader configuration
 }

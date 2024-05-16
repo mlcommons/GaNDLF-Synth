@@ -10,13 +10,13 @@ class AbstractModelConfig(ABC):
 
     def __init__(self, model_config: dict) -> None:
         super().__init__()
-        self.validatie_params(model_config)
-        config = self.set_default_params(model_config)
+        self._validatie_params(model_config)
+        config = self._set_default_params(model_config)
         self._create_properites_from_config(config)
 
     @staticmethod
     @abstractmethod
-    def validatie_params(model_config: dict) -> None:
+    def _validatie_params(model_config: dict) -> None:
         """
         This method checks if the input model configuration is valid by
         checking if the required keys are present in the dictionary.
@@ -27,7 +27,7 @@ class AbstractModelConfig(ABC):
 
     @staticmethod
     @abstractmethod
-    def set_default_params(model_config: dict) -> dict:
+    def _set_default_params(model_config: dict) -> dict:
         """
         This method sets the default parameters for the model configuration
         if the user has not provided any.
@@ -53,7 +53,7 @@ class TestModelConfig(AbstractModelConfig):
     """
 
     @staticmethod
-    def validatie_params(model_config: dict) -> None:
+    def _validatie_params(model_config: dict) -> None:
         """
         This method checks if the input model configuration is valid by
         checking if the required keys are present in the dictionary.
@@ -63,7 +63,7 @@ class TestModelConfig(AbstractModelConfig):
         assert "test_key" in model_config, "test_key not found in model configuration."
 
     @staticmethod
-    def set_default_params(model_config: dict) -> dict:
+    def _set_default_params(model_config: dict) -> dict:
         """
         This method sets the default parameters for the model configuration
         if the user has not provided any.

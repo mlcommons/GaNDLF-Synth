@@ -3,10 +3,11 @@ from abc import ABC, abstractmethod
 import torch
 from torch import nn
 from torch import optim
-from torch.nn import functional as F
 
-from typing import Dict, Union, Optional
 from logging import Logger
+from typing import Dict, Union, Optional, Type
+
+from gandlf_synth.models.configs.config_abc import AbstractModelConfig
 
 
 class SynthesisModule(ABC):
@@ -16,7 +17,10 @@ class SynthesisModule(ABC):
     """
 
     def __init__(
-        self, params: dict, logger: Logger, metric_calculator: Optional[object] = None
+        self,
+        model_config: Type[AbstractModelConfig],
+        logger: Logger,
+        metric_calculator: Optional[object] = None,
     ) -> None:
         """Initialize the synthesis module.
 
@@ -28,7 +32,7 @@ class SynthesisModule(ABC):
 
         super().__init__()
         # This is my idea for now, we can change it later.
-        self.params = params
+        self.model_config = model_config
         self.logger = logger
         self.metric_calculator = metric_calculator
         self.optimizers = self._initialize_optimizers()
@@ -181,13 +185,3 @@ class SynthesisModule(ABC):
         """
         for key, value in dict_to_log.items():
             self._log(key, value)
-
-
-class GAN(SynthesisModule):
-    """
-    Class implementing the logic for GANs. Subsequent GAN architectures
-    will inherit from this class.
-    """
-
-    # TODO : WIP
-    pass
