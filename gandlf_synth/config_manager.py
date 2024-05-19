@@ -4,11 +4,13 @@ import warnings
 from pathlib import Path
 from typing import Tuple, Type
 
-from gandlf_synth.config.main_config_defaults import (
+from gandlf_synth.parameter_defaults.main_config_defaults import (
     REQUIRED_PARAMETERS,
     BASIC_PARAMETER_DEFAULTS,
 )
-from gandlf_synth.config.dataloader_defaults import DATALOADER_CONFIG_DEFAULTS
+from gandlf_synth.parameter_defaults.dataloader_defaults import (
+    DATALOADER_CONFIG_DEFAULTS,
+)
 from gandlf_synth.models.configs.available_configs import AVAILABLE_MODEL_CONFIGS
 
 from gandlf_synth.models.configs.config_abc import AbstractModelConfig

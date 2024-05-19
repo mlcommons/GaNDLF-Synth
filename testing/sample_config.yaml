@@ -10,7 +10,12 @@ version:
 # here user will also provide config for the optimizers, schedulers, loss functions
 model_config:
   {
-    # this is going to 
+    model_name: "dcgan",
+    n_dimensions: 2,
+    n_channels: 1,
+    amp: False,
+    norm_type: "batch",
+    converter_type: "soft", # asc converter type, one of ["soft", "acs", "conv3d"]. Will default to "soft"
     optimizers:
     {
       # everything optimizer-related goes here
