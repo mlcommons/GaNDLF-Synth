@@ -2,6 +2,10 @@ from warnings import warn
 from gandlf_synth.models.configs.config_abc import AbstractModelConfig
 
 
+# TODO: We need to think if we want to create separate classes for
+# different labeling strategies or if we want to have a single class
+# that handles all of them. The latter would limit the number of classes
+# we need to create, but would make the code more complex.
 class UnlabeledDCGANConfig(AbstractModelConfig):
     """
     Configuration class for the DCGAN model handling unlabeled data.
@@ -18,11 +22,12 @@ class UnlabeledDCGANConfig(AbstractModelConfig):
 
     @staticmethod
     def _validatie_params(model_config: dict) -> None:
-        # for dcgan, no specific parameters related to architecutre are required
-        # so we can just pass. For other archs this will probably be different
-        # we can also think if in such validatiors we will perform specific checks,
-        # such as leaky_relu_slope > 0 and <1, etc.
-        pass
+        assert (
+            "generator_output_size" in model_config["architecture"]
+        ), "`generator_output_size` must be defined in the `architecture` field of `model_config`."
+        assert (
+            "discriminator_input_size" in model_config["architecture"]
+        ), "`discriminator_input_size` must be defined in the `architecture` field of `model_config`."
 
     @staticmethod
     def _set_default_params(model_config: dict) -> dict:
