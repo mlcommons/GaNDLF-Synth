@@ -34,15 +34,13 @@ class ModelBase(nn.Module):
         self.model_name = model_config.model_name
         self.n_dimensions = model_config.n_dimensions
         self.n_channels = model_config.n_channels
-        if hasattr(model_config, "n_classes"):
-            self.n_classes = model_config.n_classes
         self.amp = model_config.amp
         self.norm_type = model_config.norm_type
-
         self.linear_interpolation_mode = get_linear_interpolation_mode(
             self.n_dimensions
         )
-
+        if hasattr(model_config, "n_classes"):
+            self.n_classes = model_config.n_classes
         # based on dimensionality, the following need to defined:
         # convolution, batch_norm, instancenorm, dropout
         assert self.n_dimensions in [
@@ -77,10 +75,8 @@ class ModelBase(nn.Module):
             self.Norm = self.get_norm_type(self.norm_type.lower(), self.n_dimensions)
 
             # define 2d to 3d model converters
-            if hasattr(model_config, "converter_type"):
-                converter_type = model_config.converter_type.lower()
-            else:
-                converter_type = "soft"
+            converter_type = model_config.converter_type.lower()
+
             self.converter = SoftACSConverter
             if converter_type == "acs":
                 self.converter = ACSConverter

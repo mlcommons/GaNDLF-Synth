@@ -1,4 +1,3 @@
-# TODO implement manager that will handle the configs
 import yaml
 import warnings
 from pathlib import Path
@@ -11,6 +10,11 @@ from gandlf_synth.parameter_defaults.main_config_defaults import (
 from gandlf_synth.parameter_defaults.dataloader_defaults import (
     DATALOADER_CONFIG_DEFAULTS,
 )
+from gandlf_synth.parameter_defaults.model_parameter_defaults import (
+    REQUIRED_MODEL_PARAMETERS,
+    MODEL_PARAMETER_DEFAULTS,
+)
+
 from gandlf_synth.models.configs.available_configs import AVAILABLE_MODEL_CONFIGS
 
 from gandlf_synth.models.configs.config_abc import AbstractModelConfig
@@ -51,9 +55,19 @@ class ConfigManager:
             assert (
                 parameter in config
             ), f" Required parameter {parameter} not found in the configuration file."
-        # TODO add here more checks, especially check about the model
-        # config that always need to be specified, like model name,
-        #
+
+    @staticmethod
+    def _validate_general_model_params_config(config: dict) -> None:
+        """
+        Validate if the model configuration file contains required options.
+
+        Args:
+            config (dict): The configuration dictionary.
+        """
+        for parameter in REQUIRED_MODEL_PARAMETERS:
+            assert (
+                parameter in config
+            ), f" Required parameter {parameter} not found in the `model_config` field of the configuration file."
 
     @staticmethod
     def _set_default_params(config: dict) -> dict:
@@ -73,6 +87,26 @@ class ConfigManager:
                     UserWarning,
                 )
                 config[key] = value
+        return config
+
+    @staticmethod
+    def _set_model_default_params(config: dict) -> dict:
+        """
+        Set the default parameters for the model configuration.
+
+        Args:
+            config (dict): The configuration dictionary.
+
+        Returns:
+            dict: The updated configuration dictionary.
+        """
+        for key, value in MODEL_PARAMETER_DEFAULTS.items():
+            if key not in config["model_config"]:
+                warnings.warn(
+                    f"Parameter related to model {key} not found in the configuration file. Setting value to default: {value}.",
+                    UserWarning,
+                )
+                config["model_config"][key] = value
         return config
 
     @staticmethod
@@ -146,7 +180,9 @@ class ConfigManager:
         """
         config = self._read_config(self.config_path)
         self._validate_general_params_config(config)
+        self._validate_general_model_params_config(config)
         config = self._set_default_params(config)
+        config = self._set_model_default_params(config)
         config = self._set_dataloader_defaults(config)
 
         model_name = config["model_config"]["model_name"]

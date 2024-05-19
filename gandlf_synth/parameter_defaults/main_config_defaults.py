@@ -4,15 +4,12 @@ REQUIRED_PARAMETERS = ["model_config", "modality"]
 
 
 BASIC_PARAMETER_DEFAULTS = {
-    "amp": False,  # automatic mixed precision
     "verbose": False,  # general application verbosity
     "save_training": False,  # save outputs during training
     "save_output": False,  # save outputs during validation/testing
     "in_memory": False,  # pin data to cpu memory
     "num_epochs": 100,  # total number of epochs to train
-    "patience": 0,  # number of epochs to wait for performance improvement
     "batch_size": 1,  # default batch size of training
-    "clip_grad": None,  # clip_gradient value
     "track_memory_usage": False,  # default memory tracking
     "memory_save_mode": False,  # default memory saving, if enabled, resize/resample will save files to disk
     "print_rgb_label_warning": True,  # print rgb label warning

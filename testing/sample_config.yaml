@@ -16,6 +16,10 @@ model_config:
     amp: False,
     norm_type: "batch",
     converter_type: "soft", # asc converter type, one of ["soft", "acs", "conv3d"]. Will default to "soft"
+    architecture :
+    {
+      # architecture specific parameters go here, like number of layers, filters, etc.
+    },
     optimizers:
     {
       # everything optimizer-related goes here

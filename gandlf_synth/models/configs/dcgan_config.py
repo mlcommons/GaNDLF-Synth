@@ -18,15 +18,11 @@ class UnlabeledDCGANConfig(AbstractModelConfig):
 
     @staticmethod
     def _validatie_params(model_config: dict) -> None:
-        assert (
-            "architecture" in model_config
-        ), "Architecture parameters missing in the configuration file. Please scpify the `architecture` field in the `model_config`."
-        assert (
-            "optimizers" in model_config
-        ), "Optimizer parameters missing in the configuration file. Please specify the `optimizers` field in the `model_config`."
-        assert (
-            "losses" in model_config
-        ), "Loss parameters missing in the configuration file. Please specify the `losses` field in the `model_config`."
+        # for dcgan, no specific parameters related to architecutre are required
+        # so we can just pass. For other archs this will probably be different
+        # we can also think if in such validatiors we will perform specific checks,
+        # such as leaky_relu_slope > 0 and <1, etc.
+        pass
 
     @staticmethod
     def _set_default_params(model_config: dict) -> dict:
