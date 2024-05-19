@@ -15,7 +15,7 @@ from gandlf_synth.parameter_defaults.model_parameter_defaults import (
     MODEL_PARAMETER_DEFAULTS,
 )
 
-from gandlf_synth.models.configs.available_configs import AVAILABLE_MODEL_CONFIGS
+from gandlf_synth.models.configs.model_config_factory import ModelConfigFactory
 
 from gandlf_synth.models.configs.config_abc import AbstractModelConfig
 
@@ -27,6 +27,7 @@ class ConfigManager:
 
     def __init__(self, config_path: str) -> None:
         self.config_path = Path(config_path)
+        self.model_config_factory = ModelConfigFactory()
 
     @staticmethod
     def _read_config(config_path: Path) -> dict:
@@ -184,9 +185,11 @@ class ConfigManager:
         config = self._set_default_params(config)
         config = self._set_model_default_params(config)
         config = self._set_dataloader_defaults(config)
+        # self._set_preprocessing_defaults(config)
+        # self._set_augmentation_defaults(config)
+        # self._set_postprocessing_defaults(config)
 
-        model_name = config["model_config"]["model_name"]
-        model_config = AVAILABLE_MODEL_CONFIGS[model_name](config["model_config"])
+        model_config = self.model_config_factory.get_config(config)
         config.pop(
             "model_config"
         )  # remove model config from the main config, as it is already stored in the model_config object

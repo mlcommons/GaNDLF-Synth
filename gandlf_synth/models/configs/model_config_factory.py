@@ -4,7 +4,7 @@ from gandlf_synth.models.configs.dcgan_config import UnlabeledDCGANConfig
 from typing import Type
 
 
-class ConfigFactory:
+class ModelConfigFactory:
     AVAILABLE_MODEL_CONFIGS = {"unlabeled_dcgan": UnlabeledDCGANConfig}
 
     @staticmethod
@@ -14,7 +14,8 @@ class ConfigFactory:
 
         Args:
             parameters (dict): Dictionary containing the parameters from the config file.
-        Returns:
+
+         Returns:
             str: Name of the model configuration.
         """
         model_name = parameters["model_config"]["model_name"]
