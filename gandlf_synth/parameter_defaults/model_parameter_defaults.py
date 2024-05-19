@@ -12,6 +12,7 @@ MODEL_PARAMETER_DEFAULTS = {
     "converter_type": "soft",  # 2d to 3d asc converter type
     "clip_grad": None,  # gradient clipping
     "patience": 0,  # number of epochs to wait for performance improvement
+    "labeling_paradigm": "unlabeled",  # labeling paradigm
     "schedulers": {},
     "architecture": {},
 }

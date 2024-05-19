@@ -16,6 +16,10 @@ model_config:
     amp: False,
     norm_type: "batch",
     converter_type: "soft", # asc converter type, one of ["soft", "acs", "conv3d"]. Will default to "soft"
+    labeling_paradigm: "unlabeled", # here user applies the condtitioning (labeling)
+# if such usage is required. We need to decide how to name the labeling paradigms tho
+# maybe: "slice" (slice position in a volue as label), "patient": (patient id as label), "class_based" (class determined by user by splitting data into separate folders)
+
     architecture :
     {
       # architecture specific parameters go here, like number of layers, filters, etc.
@@ -32,6 +36,7 @@ model_config:
     {
       # everything loss-related goes here
     }
+    
   }
 # Available metrics: ssim, fid, lpips along their config. Also possible not to use any metric
 metrics:
@@ -51,6 +56,8 @@ metrics_config:
       "converter_type": soft
     }
   }
+
+
 verbose: True
 
 # Modalities as previously
