@@ -11,6 +11,7 @@ MODEL_PARAMETER_DEFAULTS = {
     "norm_type": "batch",  # normalization type
     "converter_type": "soft",  # 2d to 3d asc converter type
     "clip_grad": None,  # gradient clipping
+    "clip_mode": "norm",  # gradient clipping mode
     "patience": 0,  # number of epochs to wait for performance improvement
     "labeling_paradigm": "unlabeled",  # labeling paradigm
     "schedulers": {},
