@@ -88,6 +88,42 @@ class UnlabeledDCGANModule(SynthesisModule):
                 f"NaN loss detected in generator step for batch {batch_idx}, the step will be skipped",
                 RuntimeWarning,
             )
+        self._log("disc_loss", loss_disc)
+        self._log("gen_loss", gen_loss)
+
+        # TODO: Implement metrics calculation
+        if self.metric_calculator is not None:
+            print("Calculating metrics!")
+
+    # TODO
+    def validation_step(self, batch: object, batch_idx: int) -> torch.Tensor:
+        print("Validation step")
+
+    # TODO
+    def inference_step(self, **kwargs) -> torch.Tensor:
+        print("Inference step")
+
+    def forward(self, *args, **kwargs) -> torch.Tensor:
+        """
+        Forward pass of the unlabeled DCGAN module. This method is considered
+        a call to a generator to produce given number of images.
+
+        Args:
+            n_images_to_generate (int): Number of images to generate.
+        """
+        n_images_to_generate = kwargs.get("n_images_to_generate", None)
+        assert (
+            n_images_to_generate is not None
+        ), "Number of images to generate is required during the forward pass."
+
+        latent_vector = generate_latent_vector(
+            n_images_to_generate,
+            self.model_config.latent_vector_size,
+            self.model_config.n_dimensions,
+            self.device,
+        )
+        fake_images = self.model.generator(latent_vector)
+        return fake_images
 
     def _initialize_model(self) -> ModelBase:
         return DCGAN(self.model_config)
