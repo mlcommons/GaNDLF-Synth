@@ -25,4 +25,6 @@ def get_optimizer(model_params: Iterable, optimizer_parameters: dict) -> Optimiz
         optimizer_creator = global_optimizer_dict[optimizer_type]
         return optimizer_creator(model_params, optimizer_parameters)
     else:
-        raise ValueError("Optimizer type %s not found" % optimizer_type)
+        raise ValueError(
+            f"Optimizer type {optimizer_type} not found. Please choose from {global_optimizer_dict.keys()}."
+        )
