@@ -8,6 +8,7 @@ from logging import Logger
 from typing import Dict, Union, Optional, Type
 
 from gandlf_synth.models.configs.config_abc import AbstractModelConfig
+from gandlf_synth.models.architectures.base_model import ModelBase
 
 
 class SynthesisModule(ABC):
@@ -35,6 +36,7 @@ class SynthesisModule(ABC):
         self.model_config = model_config
         self.logger = logger
         self.metric_calculator = metric_calculator
+        self.model = self._initialize_model()
         self.optimizers = self._initialize_optimizers()
         self.losses = self._initialize_losses()
         self.schedulers = self._initialize_schedulers()
@@ -92,6 +94,16 @@ class SynthesisModule(ABC):
         # Not sure if the construction is correct, probably in some
         # cases this class will accept multiple inputs.
 
+        pass
+
+    @abstractmethod
+    def _initialize_model(self) -> ModelBase:
+        """
+        Initialize the model for the synthesis module.
+
+        Returns:
+            model (ModelBase): Model for the synthesis module.
+        """
         pass
 
     @abstractmethod
