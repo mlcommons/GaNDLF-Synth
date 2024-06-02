@@ -28,14 +28,7 @@ def adam(model_params: Iterable, optimizer_parameters: dict) -> Optimizer:
         optimizer (torch.optim.Adam): An Adam optimizer.
     """
 
-    return Adam(
-        model_params,
-        lr=optimizer_parameters.get("learning_rate"),
-        betas=optimizer_parameters.get("betas", (0.9, 0.999)),
-        weight_decay=optimizer_parameters.get("weight_decay", 0.00005),
-        eps=optimizer_parameters.get("eps", 1e-8),
-        amsgrad=optimizer_parameters.get("amsgrad", False),
-    )
+    return Adam(model_params, **optimizer_parameters)
 
 
 def adamw(model_params: Iterable, optimizer_parameters: dict) -> Optimizer:
@@ -49,11 +42,4 @@ def adamw(model_params: Iterable, optimizer_parameters: dict) -> Optimizer:
         optimizer (torch.optim.AdamW): AdamW optimizer.
     """
 
-    return AdamW(
-        model_params,
-        lr=optimizer_parameters.get("learning_rate"),
-        betas=optimizer_parameters.get("betas", (0.9, 0.999)),
-        weight_decay=optimizer_parameters.get("weight_decay", 0.00005),
-        eps=optimizer_parameters.get("eps", 1e-8),
-        amsgrad=optimizer_parameters.get("amsgrad", False),
-    )
+    return AdamW(model_params, **optimizer_parameters)
