@@ -22,6 +22,7 @@ class SynthesisModule(ABC):
         model_config: Type[AbstractModelConfig],
         logger: Logger,
         metric_calculator: Optional[object] = None,
+        device: str = "cpu",
     ) -> None:
         """Initialize the synthesis module.
 
@@ -29,6 +30,7 @@ class SynthesisModule(ABC):
             params (dict): Dictionary of parameters.
             logger (Logger): Logger for logging the values.
             metric_calculator (object,optional): Metric calculator object.
+            device (str, optional): Device to perform computations on. Defaults to "cpu".
         """
 
         super().__init__()
@@ -36,10 +38,14 @@ class SynthesisModule(ABC):
         self.model_config = model_config
         self.logger = logger
         self.metric_calculator = metric_calculator
+        self.device = torch.device(device)
         self.model = self._initialize_model()
         self.optimizers = self._initialize_optimizers()
         self.losses = self._initialize_losses()
         self.schedulers = self._initialize_schedulers()
+        # Ensure the objects are placed on the device.
+        self.model = self._ensure_device_placement(self.model)
+        self.losses = self._ensure_device_placement(self.losses)
 
     @abstractmethod
     def training_step(self, batch: object, batch_idx: int) -> torch.Tensor:
@@ -197,3 +203,19 @@ class SynthesisModule(ABC):
         """
         for key, value in dict_to_log.items():
             self._log(key, value)
+
+    def _ensure_device_placement(self, data: object) -> object:
+        """
+        Ensure the data is placed on the device.
+
+        Args:
+            data: Data to place on the device.
+        Returns:
+            data: Data placed on the device.
+        """
+        if isinstance(data, torch.Tensor) or isinstance(data, nn.Module):
+            return data.to(self.device)
+        elif isinstance(data, dict):
+            for key, value in data.items():
+                data[key] = value.to(self.device)
+            return data
