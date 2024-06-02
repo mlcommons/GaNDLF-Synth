@@ -38,7 +38,7 @@ def BCELogits(loss_params: dict) -> Module:
     return BCEWithLogitsLoss(**loss_params)
 
 
-def CEL(loss_params: dict) -> Module:
+def CE(loss_params: dict) -> Module:
     """
     Binary cross entropy loss.
 
