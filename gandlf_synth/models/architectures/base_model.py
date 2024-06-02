@@ -101,20 +101,11 @@ class ModelBase(nn.Module):
         Returns:
             _InstanceNorm or _BatchNorm: The normalization type for the model.
         """
-        if dimensions == 3:
-            if norm_type == "batch":
-                norm_type = nn.BatchNorm3d
-            elif norm_type == "instance":
-                norm_type = nn.InstanceNorm3d
-            else:
-                norm_type = None
-        elif dimensions == 2:
-            if norm_type == "batch":
-                norm_type = nn.BatchNorm2d
-            elif norm_type == "instance":
-                norm_type = nn.InstanceNorm2d
-            else:
-                norm_type = None
+        norm_type = None # default
+        if norm_type == "batch":
+            norm_type = eval("nn.BatchNorm%dd" % dimensions)
+        elif norm_type == "instance":
+            norm_type = eval("nn.InstanceNorm%dd" % dimensions)
 
         return norm_type
 
