@@ -34,9 +34,7 @@ class UnlabeledSynthesisDataset(SynthesisDataset):
 
     """
 
-    # TODO this numpy array conversion is not necessary, just wanted to
-    # make sure that the code runs. Here it is still WIP, still need to apply
-    # the transforms. We need to also think about how to handle the case if one
+    # TODO We need to also think about how to handle the case if one
     # of the channels is a label map as we want to avoid applying the intensity
     # transforms to it. Maybe something similar to the torchio's `tio.Label` class
     # as in GaNDLF.
