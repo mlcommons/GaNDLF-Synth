@@ -19,12 +19,9 @@ def get_optimizer(model_params: Iterable, optimizer_parameters: dict) -> Optimiz
     """
     # Retrieve the optimizer type from the input parameters
     optimizer_type = optimizer_parameters["name"]
-
+    assert (
+        optimizer_type in global_optimizer_dict
+    ), f"Optimizer type {optimizer_type} not found. Please choose from {global_optimizer_dict.keys()}."
     # Create the optimizer instance using the specified type and input parameters
-    if optimizer_type in global_optimizer_dict:
-        optimizer_creator = global_optimizer_dict[optimizer_type]
-        return optimizer_creator(model_params, optimizer_parameters)
-    else:
-        raise ValueError(
-            f"Optimizer type {optimizer_type} not found. Please choose from {global_optimizer_dict.keys()}."
-        )
+    optimizer_creator = global_optimizer_dict[optimizer_type]
+    return optimizer_creator(model_params, optimizer_parameters)

@@ -18,11 +18,10 @@ def get_loss(loss_params: dict) -> Module:
     # Retrieve the loss function type from the input parameters
     loss_type = loss_params["name"]
 
+    assert (
+        loss_type in global_losses_dict
+    ), f"Loss function type {loss_type} not found. Please choose from {global_losses_dict.keys()}."
+
     # Create the loss function instance using the specified type and input parameters
-    if loss_type in global_losses_dict:
-        loss_creator = global_losses_dict[loss_type]
-        return loss_creator(loss_params)
-    else:
-        raise ValueError(
-            f"Loss function type {loss_type} not found. Please choose from {global_losses_dict.keys()}."
-        )
+    loss_creator = global_losses_dict[loss_type]
+    return loss_creator(loss_params)
