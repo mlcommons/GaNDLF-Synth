@@ -26,6 +26,7 @@ model_config:
     },
     optimizers:
     {
+      
       # everything optimizer-related goes here
     },
     schedulers:
