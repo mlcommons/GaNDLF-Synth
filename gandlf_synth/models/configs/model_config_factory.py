@@ -36,4 +36,4 @@ class ModelConfigFactory:
             f"Model configuration {config_name} not found. "
             f"Available configurations: {self.AVAILABLE_MODEL_CONFIGS.keys()}"
         )
-        return self.AVAILABLE_MODEL_CONFIGS[config_name]
+        return self.AVAILABLE_MODEL_CONFIGS[config_name](parameters["model_config"])

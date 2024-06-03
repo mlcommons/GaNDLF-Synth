@@ -26,6 +26,13 @@ class ConfigManager:
     """
 
     def __init__(self, config_path: str) -> None:
+        """
+        Initialize the ConfigManager.
+
+        Args:
+            config_path (str): The path to the configuration file.
+        """
+
         self.config_path = Path(config_path)
         self.model_config_factory = ModelConfigFactory()
 
@@ -68,7 +75,7 @@ class ConfigManager:
         for parameter in REQUIRED_MODEL_PARAMETERS:
             assert (
                 parameter in config
-            ), f" Required parameter {parameter} not found in the `model_config` field of the configuration file."
+            ), f" Required parameter `{parameter}` not found in the `model_config` field of the configuration file."
 
     @staticmethod
     def _set_default_params(config: dict) -> dict:
@@ -181,7 +188,7 @@ class ConfigManager:
         """
         config = self._read_config(self.config_path)
         self._validate_general_params_config(config)
-        self._validate_general_model_params_config(config)
+        self._validate_general_model_params_config(config["model_config"])
         config = self._set_default_params(config)
         config = self._set_model_default_params(config)
         config = self._set_dataloader_defaults(config)

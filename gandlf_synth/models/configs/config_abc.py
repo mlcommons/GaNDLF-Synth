@@ -25,9 +25,8 @@ class AbstractModelConfig(ABC):
         """
         pass
 
-    @staticmethod
     @abstractmethod
-    def _set_default_params(model_config: dict) -> dict:
+    def _set_default_params(self, model_config: dict) -> dict:
         """
         This method sets the default parameters for the model configuration
         if the user has not provided any.
@@ -62,8 +61,7 @@ class TestModelConfig(AbstractModelConfig):
         """
         assert "test_key" in model_config, "test_key not found in model configuration."
 
-    @staticmethod
-    def _set_default_params(model_config: dict) -> dict:
+    def _set_default_params(self, model_config: dict) -> dict:
         """
         This method sets the default parameters for the model configuration
         if the user has not provided any.

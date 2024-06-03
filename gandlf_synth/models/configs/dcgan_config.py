@@ -29,9 +29,8 @@ class UnlabeledDCGANConfig(AbstractModelConfig):
             "discriminator_input_size" in model_config["architecture"]
         ), "`discriminator_input_size` must be defined in the `architecture` field of `model_config`."
 
-    @staticmethod
-    def _set_default_params(model_config: dict) -> dict:
-        for key, value in UnlabeledDCGANConfig.ARCHITECTURE_DEFAULT_PARAMS.items():
+    def _set_default_params(self, model_config: dict) -> dict:
+        for key, value in self.ARCHITECTURE_DEFAULT_PARAMS.items():
             if key not in model_config["architecture"]:
                 model_config["architecture"][key] = value
                 warn(
