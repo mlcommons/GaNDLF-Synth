@@ -18,12 +18,11 @@ DEVICE = "cpu"
 LOGGER_OBJECT = logging.Logger("synthesis_module_logger", level=logging.DEBUG)
 
 
-def main():
-    # load the configuration
-
+def test_dcgan_module():
     config_manager = ConfigManager(TEST_CONFIG_PATH)
 
     global_config, model_config = config_manager.prepare_configs()
+    # TODO this needs to be replaced with proper transforms
     RESIZE_TRANSFORM = Compose([Resize((128, 128, 1))])
     dataset_factory = DatasetFactory()
     dataloader_factory = DataloaderFactory(global_config)
@@ -42,7 +41,3 @@ def main():
         module.training_step(batch, batch_idx)
         print("Training step completed!")
         break
-
-
-if __name__ == "__main__":
-    main()
