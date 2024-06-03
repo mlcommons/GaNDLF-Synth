@@ -48,7 +48,7 @@ class DataloaderFactory:
         Returns:
             DataLoader: The training dataloader.
         """
-        return self._get_dataloder(self.params["training_dataloader"], dataset)
+        return self._get_dataloder(self.params["dataloader_config"]["train"], dataset)
 
     def get_validation_dataloader(self, dataset: Type[SynthesisDataset]) -> DataLoader:
         """
@@ -61,7 +61,9 @@ class DataloaderFactory:
             DataLoader: The validation dataloader.
         """
 
-        return self._get_dataloder(self.params["validation_dataloader"], dataset)
+        return self._get_dataloder(
+            self.params["dataloader_config"]["validation"], dataset
+        )
 
     def get_testing_dataloader(self, dataset: Type[SynthesisDataset]) -> DataLoader:
         """
@@ -74,7 +76,7 @@ class DataloaderFactory:
             DataLoader: The testing dataloader.
         """
 
-        return self._get_dataloder(self.params["testing_dataloader"], dataset)
+        return self._get_dataloder(self.params["dataloader_config"]["test"], dataset)
 
     def get_inference_dataloader(self, dataset: Type[SynthesisDataset]) -> DataLoader:
         """
@@ -86,4 +88,6 @@ class DataloaderFactory:
         Returns:
             DataLoader: The inference dataloader.
         """
-        return self._get_dataloder(self.params["inference_dataloader"], dataset)
+        return self._get_dataloder(
+            self.params["dataloader_config"]["inference"], dataset
+        )
