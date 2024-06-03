@@ -52,7 +52,7 @@ class UnlabeledSynthesisDataset(SynthesisDataset):
         if self.transforms:
             tio_scalar_image = self.transforms(tio_scalar_image)
         # TODO think if this is valid
-        image = tio_scalar_image.data.squeeze(-1)  # if 2D the last dim is 1
+        image = tio_scalar_image.data.squeeze(-1).float()  # if 2D the last dim is 1
         return image
 
 
