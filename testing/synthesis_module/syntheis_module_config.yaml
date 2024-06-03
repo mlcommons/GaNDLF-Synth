@@ -12,7 +12,7 @@ model_config:
   {
     model_name: "dcgan",
     n_dimensions: 2,
-    n_channels: 1,
+    n_channels: 2,
     amp: False,
     norm_type: "batch",
     converter_type: "soft", # asc converter type, one of ["soft", "acs", "conv3d"]. Will default to "soft"
@@ -22,13 +22,24 @@ model_config:
 
     architecture :
     {
-      generator_output_size : [1, 128, 128],
-      discriminator_input_size : [1, 128, 128],
+      latent_vector_size: 100,
+      generator_output_size : [128, 128],
+      discriminator_input_size : [128, 128],
     },
     optimizers:
     {
-
-      # everything optimizer-related goes here
+      discriminator : {
+        name: "adam",
+        lr: 0.0002,
+        betas: [0.5, 0.999],
+        weight_decay: 0.0
+      },
+      generator : {
+        name: "adam",
+        lr: 0.0002,
+        betas: [0.5, 0.999],
+        weight_decay: 0.0
+      }
     },
     schedulers:
     {
@@ -36,8 +47,12 @@ model_config:
     },
     losses:
     {
-      # everything loss-related goes here
-      
+      discriminator: {
+        name: "BCELogits",
+    },
+      generator: {
+        name: "BCELogits",
+      }
     }
     
   }
