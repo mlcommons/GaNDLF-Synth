@@ -6,9 +6,12 @@ from torch.optim.lr_scheduler import _LRScheduler
 
 from gandlf_synth.models.architectures.base_model import ModelBase
 from gandlf_synth.models.architectures.dcgan import DCGAN
-from module_abc import SynthesisModule
-from utils.compute import backward_pass
-from utils.generators import generate_latent_vector, get_fixed_latent_vector
+from gandlf_synth.models.modules.module_abc import SynthesisModule
+from gandlf_synth.utils.compute import backward_pass
+from gandlf_synth.utils.generators import (
+    generate_latent_vector,
+    get_fixed_latent_vector,
+)
 from gandlf_synth.optimizers import get_optimizer
 from gandlf_synth.losses import get_loss
 from typing import Dict, Union
@@ -21,14 +24,14 @@ class UnlabeledDCGANModule(SynthesisModule):
         batch_size = real_images.shape[0]
         latent_vector = generate_latent_vector(
             batch_size,
-            self.model_config.latent_vector_size,
+            self.model_config.architecture["latent_vector_size"],
             self.model_config.n_dimensions,
             self.device,
         )
         # DISCRIMINATOR PASS WITH REAL IMAGES
         self.optimizers["disc_optimizer"].zero_grad(set_to_none=True)
         label_real = torch.full(
-            (batch_size,), fill_value=1.0, dtype=torch.float, device=self.device
+            (batch_size, 1), fill_value=1.0, dtype=torch.float, device=self.device
         )
         preds_real = self.model.discriminator(real_images)
         disc_loss_real = self.losses["disc_loss"](preds_real, label_real)
@@ -90,7 +93,6 @@ class UnlabeledDCGANModule(SynthesisModule):
             )
         self._log("disc_loss", loss_disc)
         self._log("gen_loss", gen_loss)
-
         # TODO: Implement metrics calculation
         if self.metric_calculator is not None:
             print("Calculating metrics!")
@@ -118,7 +120,7 @@ class UnlabeledDCGANModule(SynthesisModule):
 
         latent_vector = generate_latent_vector(
             n_images_to_generate,
-            self.model_config.latent_vector_size,
+            self.model_config.architecture["latent_vector_size"],
             self.model_config.n_dimensions,
             self.device,
         )
@@ -137,11 +139,11 @@ class UnlabeledDCGANModule(SynthesisModule):
         self,
     ) -> Union[torch.optim.Optimizer, Dict[str, torch.optim.Optimizer]]:
         disc_optimizer = get_optimizer(
-            model_params=self.model.discriminator.parameters,
+            model_params=self.model.discriminator.parameters(),
             optimizer_parameters=self.model_config.optimizers["discriminator"],
         )
         gen_optimizer = get_optimizer(
-            model_params=self.model.generator.parameters,
+            model_params=self.model.generator.parameters(),
             optimizer_parameters=self.model_config.optimizers["generator"],
         )
         return {"disc_optimizer": disc_optimizer, "gen_optimizer": gen_optimizer}
