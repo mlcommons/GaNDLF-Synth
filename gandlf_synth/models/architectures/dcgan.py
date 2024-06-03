@@ -1,6 +1,6 @@
 """Implementation of DCGAN model."""
 from warnings import warn
-from typing import Tuple, Type
+from typing import Type, List
 
 import torch
 import torch.nn as nn
@@ -14,7 +14,7 @@ class _GeneratorDCGAN(nn.Module):
 
     def __init__(
         self,
-        output_patch_size: Tuple[int, int, int],
+        output_size: List[int],
         n_dimensions: int,
         latent_vector_dim: int,
         num_output_channels: int,
@@ -27,8 +27,7 @@ class _GeneratorDCGAN(nn.Module):
         Initializes a new instance of the _GneratorDCGAN class.
 
         Args:
-            output_patch_size (Tuple[int, int,int]): The size of the output
-        patch.
+            output_size (List[int]): The size of the generated output.
             n_dimensions (int): The dimensionality of the input and output.
             latent_vector_dim (int): The dimension of the latent vector
         to be used as input to the generator.
@@ -113,17 +112,11 @@ class _GeneratorDCGAN(nn.Module):
         # the output patch size, add an upsampling layer and a 1x1
         # convolution to match the output size and reparametrize the
         # interpoladed output
-        if not self._output_shape_matching(
-            output_patch_size, feature_extractor_output_size
-        ):
+        if output_size != feature_extractor_output_size:
             self.feature_extractor.add_module(
                 "upsample",
                 nn.Upsample(
-                    size=(
-                        output_patch_size[:-1]
-                        if n_dimensions == 2
-                        else output_patch_size
-                    ),
+                    size=(output_size),
                     mode="bilinear" if n_dimensions == 2 else "trilinear",
                     align_corners=True,
                 ),
@@ -146,36 +139,11 @@ class _GeneratorDCGAN(nn.Module):
         self.feature_extractor.add_module("tanh", nn.Tanh())
 
     @staticmethod
-    def _output_shape_matching(
-        output_patch_size: Tuple[int, int, int],
-        feature_extractor_output_size: Tuple[int, int, int],
-    ) -> bool:
-        """
-        Checks if the output patch size matches the output size of
-        the feature extractor.
-
-        Args:
-            output_patch_size (Tuple[int, int, int]): The size of the
-        output patch.
-            feature_extractor_output_size (Tuple[int, int, int]): The
-        output size of the feature extractor.
-
-        Returns:
-            bool: True if the output patch size matches the output size
-        """
-        if output_patch_size[-1] == 1:
-            output_patch_size = output_patch_size[:-1]
-        if output_patch_size != feature_extractor_output_size:
-            return False
-        return True
-
-    @staticmethod
     def _get_output_size_feature_extractor(
         feature_extractor: nn.Module, latent_vector_dim: int, n_dimensions: int = 3
     ) -> int:
         """
-        Determines the output size of the feature extractor to
-        initialize the classifier.
+        Determines the output size of the given module.
 
         Args:
             feature_extractor (nn.Module): The feature extractor module.
@@ -212,8 +180,7 @@ class _DiscriminatorDCGAN(nn.Module):
 
     def __init__(
         self,
-        input_patch_size: Tuple[int, int, int],
-        n_dimensions: int,
+        input_size: List[int],
         num_input_channels: int,
         growth_rate: int,
         disc_init_channels: int,
@@ -225,9 +192,8 @@ class _DiscriminatorDCGAN(nn.Module):
         Initializes a new instance of the _DiscriminatorDCGAN class.
 
         Args:
-            input_patch_size (Tuple[int, int,int]): The size of the
+            input_size (List[int]): The size of the
         input patch.
-            n_dimensions (int): The dimensionality of the input.
             num_input_channels (int): The number of input channels in
         the image to be discriminated.
             growth_rate (int): The growth rate of the number of hidden
@@ -310,17 +276,14 @@ class _DiscriminatorDCGAN(nn.Module):
         self.feature_extractor.add_module("flatten", nn.Flatten(start_dim=1))
 
         num_output_features = self._get_output_size_feature_extractor(
-            self.feature_extractor, input_patch_size, num_input_channels, n_dimensions
+            self.feature_extractor, input_size, num_input_channels
         )
         self.classifier.add_module("linear1", nn.Linear(num_output_features, 1))
         self.classifier.add_module("sigmoid", nn.Sigmoid())
 
     @staticmethod
     def _get_output_size_feature_extractor(
-        feature_extractor: nn.Module,
-        patch_size: Tuple[int, int, int],
-        n_channels: int = 1,
-        n_dimensions: int = 3,
+        feature_extractor: nn.Module, input_size: List[int], n_channels: int = 1
     ) -> int:
         """
         Determines the output size of the feature extractor to
@@ -328,17 +291,15 @@ class _DiscriminatorDCGAN(nn.Module):
 
         Args:
             feature_extractor (nn.Module): The feature extractor module.
-            patch_size (Tuple[int, int,int]): The size of the input patch.
+            input_size (List[int]): The size of the input size. This
+        only includes (H, W, D) and not the number of channels (C).
             n_channels (int): The number of input channels in the image
         to be discriminated.
-            n_dimensions (int): The dimensionality of the input.
 
         Returns:
             int: The output size of the feature extractor.
         """
-        dummy_input_shape = [1, n_channels, *patch_size]
-        if n_dimensions == 2:
-            dummy_input_shape.pop()
+        dummy_input_shape = [1, n_channels, *input_size]
         dummy_input = torch.randn(dummy_input_shape)
         dummy_output = feature_extractor(dummy_input)
         return dummy_output.shape[1]
@@ -370,7 +331,7 @@ class DCGAN(ModelBase):
             warn("No normalization specified. Defaulting to BatchNorm", RuntimeWarning)
             self.Norm = self.BatchNorm
         self.generator = _GeneratorDCGAN(
-            output_patch_size=model_config.architecture["generator_output_size"],
+            output_size=model_config.architecture["generator_output_size"],
             latent_vector_dim=model_config.architecture["latent_vector_size"],
             growth_rate=model_config.architecture["growth_rate_generator"],
             gen_init_channels=model_config.architecture["init_channels_generator"],
@@ -380,11 +341,10 @@ class DCGAN(ModelBase):
             num_output_channels=self.n_channels,
         )
         self.discriminator = _DiscriminatorDCGAN(
-            n_dimensions=self.n_dimensions,
             num_input_channels=self.n_channels,
             norm=self.Norm,
             conv=self.Conv,
-            input_patch_size=model_config.architecture["discriminator_input_size"],
+            input_size=model_config.architecture["discriminator_input_size"],
             growth_rate=model_config.architecture["growth_rate_discriminator"],
             disc_init_channels=model_config.architecture["init_channels_discriminator"],
             slope=model_config.architecture["leaky_relu_slope"],
