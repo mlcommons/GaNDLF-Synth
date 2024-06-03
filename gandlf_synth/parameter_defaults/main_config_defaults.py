@@ -1,4 +1,6 @@
-from dataloader_defaults import DATALOADER_CONFIG_DEFAULTS
+from gandlf_synth.parameter_defaults.dataloader_defaults import (
+    DATALOADER_CONFIG_DEFAULTS,
+)
 
 REQUIRED_PARAMETERS = ["model_config", "modality"]
 
