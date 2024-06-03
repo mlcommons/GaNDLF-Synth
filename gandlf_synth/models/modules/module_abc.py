@@ -192,7 +192,7 @@ class SynthesisModule(ABC):
         # that we used in GaNDLF for logging the values. Maybe we should also wait for Sylwia's
         # port of new logging in main GaDLF. Anyway the logging should be done in the same way
         # for all the modules.
-        self.logger.log(value_name, value_to_log)
+        self.logger.log(10, f"{value_name}: {value_to_log}")
 
     def _log_dict(self, dict_to_log: Dict[str, float]) -> None:
         """
@@ -202,7 +202,7 @@ class SynthesisModule(ABC):
             dict_to_log: Dictionary of values to log.
         """
         for key, value in dict_to_log.items():
-            self._log(key, value)
+            self._log(10, f"{key}: {value}")
 
     def _ensure_device_placement(self, data: object) -> object:
         """
