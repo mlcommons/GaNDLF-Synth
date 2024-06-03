@@ -17,7 +17,7 @@ def get_loss(loss_params: dict) -> Module:
     """
     # Retrieve the loss function type from the input parameters
     loss_type = loss_params["name"]
-
+    loss_params.pop("name")
     assert (
         loss_type in global_losses_dict
     ), f"Loss function type {loss_type} not found. Please choose from {global_losses_dict.keys()}."

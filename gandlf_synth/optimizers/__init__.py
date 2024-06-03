@@ -19,6 +19,7 @@ def get_optimizer(model_params: Iterable, optimizer_parameters: dict) -> Optimiz
     """
     # Retrieve the optimizer type from the input parameters
     optimizer_type = optimizer_parameters["name"]
+    optimizer_parameters.pop("name")
     assert (
         optimizer_type in global_optimizer_dict
     ), f"Optimizer type {optimizer_type} not found. Please choose from {global_optimizer_dict.keys()}."
