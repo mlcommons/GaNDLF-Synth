@@ -1,13 +1,10 @@
 import os
 import logging
-
 from pathlib import Path
-from argparse import ArgumentParser
 
 from torchio.transforms import Compose, Resize
 
 from gandlf_synth.config_manager import ConfigManager
-from gandlf_synth.models.configs.model_config_factory import ModelConfigFactory
 from gandlf_synth.data.datasets import DatasetFactory
 from gandlf_synth.data.dataloaders import DataloaderFactory
 from gandlf_synth.models.modules.dcgan_module import UnlabeledDCGANModule
