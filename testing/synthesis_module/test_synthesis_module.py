@@ -1,7 +1,11 @@
 import os
 import logging
 import yaml
+<<<<<<< HEAD
 import shutil
+=======
+from pathlib import Path
+>>>>>>> 5a8a73b (Modifications to tests and guidelines)
 
 from datetime import datetime
 from pathlib import Path
@@ -15,6 +19,8 @@ from gandlf_synth.data.datasets_factory import DatasetFactory
 from gandlf_synth.data.dataloaders_factory import DataloaderFactory
 from gandlf_synth.models.modules.module_factory import ModuleFactory
 from gandlf_synth.training_manager import TrainingManager
+from typing import List
+
 from typing import List
 
 TEST_DIR = Path(__file__).parent.absolute().__str__()
@@ -53,12 +59,15 @@ class ContextManagerTests:
     Context manager ensuring that certain operations are performed before and after the tests.
     """
 
+<<<<<<< HEAD
     def __init__(self, test_name: str):
         """
         Initialize the context manager.
         """
         self.test_name = test_name
 
+=======
+>>>>>>> 5a8a73b (Modifications to tests and guidelines)
     def __enter__(self):
         """
         Method to be executed before the tests.
@@ -69,6 +78,7 @@ class ContextManagerTests:
         """
         Method to be executed after the tests.
         """
+<<<<<<< HEAD
         if exc_type is not None and exc_type is not KeyboardInterrupt:
             if os.path.exists(OUTPUT_DIR):
                 shutil.copytree(
@@ -86,6 +96,10 @@ class ContextManagerTests:
                     shutil.rmtree(entry.path)
                 else:
                     os.remove(entry.path)
+=======
+        # Later we may move output dir sanitization here too, and other stuff
+        restore_config()
+>>>>>>> 5a8a73b (Modifications to tests and guidelines)
 
 
 def parse_available_module(module_name: str) -> List[str]:
