@@ -5,10 +5,9 @@ from pathlib import Path
 from torchio.transforms import Compose, Resize
 
 from gandlf_synth.config_manager import ConfigManager
-from gandlf_synth.data.datasets import DatasetFactory
-from gandlf_synth.data.dataloaders import DataloaderFactory
-from gandlf_synth.models.modules.dcgan_module import UnlabeledDCGANModule
-
+from gandlf_synth.data.datasets_factory import DatasetFactory
+from gandlf_synth.data.dataloaders_factory import DataloaderFactory
+from gandlf_synth.models.modules.module_factory import ModuleFactory
 
 TEST_DIR = Path(__file__).parent.absolute().__str__()
 
@@ -30,13 +29,17 @@ def test_dcgan_module():
     dataset = dataset_factory.get_dataset(
         CSV_PATH, RESIZE_TRANSFORM, model_config.labeling_paradigm
     )
+
     dataloader = dataloader_factory.get_training_dataloader(dataset)
-    module = UnlabeledDCGANModule(
+
+    module_factory = ModuleFactory(
         model_config=model_config,
         logger=LOGGER_OBJECT,
         metric_calculator=None,
         device=DEVICE,
     )
+    module = module_factory.get_module()
+
     for batch_idx, batch in enumerate(dataloader):
         module.training_step(batch, batch_idx)
         print("Training step completed!")
