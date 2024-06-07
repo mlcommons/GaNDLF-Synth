@@ -4,7 +4,7 @@ import pandas as pd
 
 import torchio as tio
 from torchio.transforms import Compose
-from torch.utils.data import Dataset, DataLoader
+from torch.utils.data import Dataset
 
 
 # Can we just inherit from the torch dataset? Or do we need to define
@@ -54,20 +54,3 @@ class UnlabeledSynthesisDataset(SynthesisDataset):
         # TODO think if this is valid
         image = tio_scalar_image.data.squeeze(-1).float()  # if 2D the last dim is 1
         return image
-
-
-if __name__ == "__main__":
-    # some basic testing, debugging purposes
-    from GANDLF.data.preprocessing import global_preprocessing_dict
-
-    example_transforms = Compose([global_preprocessing_dict["rescale"]()])
-    dataset_factory = DatasetFactory()
-    unlabeled_dataset = dataset_factory.get_dataset(
-        csv_path="data/synth_data.csv", transforms=example_transforms
-    )
-    image = unlabeled_dataset[0]
-
-    dataloader = DataLoader(unlabeled_dataset, batch_size=1, shuffle=True)
-    for batch in dataloader:
-        print(batch[0].shape)
-        break

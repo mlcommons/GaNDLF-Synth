@@ -1,139 +1,83 @@
-version:
-  {
-    minimum: 0.0.1,
-    maximum: 0.0.1-dev
-  }
-# model config will be parsed into object representing config for a given model
-# as the configs will probably be very heterogeneous, we will not enforce any schema
-# just provide guides for every model user wants to use. This way also we can keep the
-# parsing functions cleaner and more modular. Apart from architecture specific parameters,
-# here user will also provide config for the optimizers, schedulers, loss functions
-model_config:
-  {
-    model_name: "dcgan",
-    n_dimensions: 2,
-    n_channels: 2,
-    amp: False,
-    norm_type: "batch",
-    converter_type: "soft", # asc converter type, one of ["soft", "acs", "conv3d"]. Will default to "soft"
-    labeling_paradigm: "unlabeled", # here user applies the condtitioning (labeling)
-# if such usage is required. We need to decide how to name the labeling paradigms tho
-# maybe: "slice" (slice position in a volue as label), "patient": (patient id as label), "class_based" (class determined by user by splitting data into separate folders)
-
-    architecture :
-    {
-      latent_vector_size: 100,
-      generator_output_size : [128, 128],
-      discriminator_input_size : [128, 128],
-    },
-    optimizers:
-    {
-      discriminator : {
-        name: "adam",
-        lr: 0.0002,
-        betas: [0.5, 0.999],
-        weight_decay: 0.0
-      },
-      generator : {
-        name: "adam",
-        lr: 0.0002,
-        betas: [0.5, 0.999],
-        weight_decay: 0.0
-      }
-    },
-    schedulers:
-    {
-      # everything scheduler-related goes here (can be ommited tho)
-    },
-    losses:
-    {
-      discriminator: {
-        name: "BCELogits",
-    },
-      generator: {
-        name: "BCELogits",
-      }
-    }
-    
-  }
-# Available metrics: ssim, fid, lpips along their config. Also possible not to use any metric
-metrics:
-  - ssim
-  - fid
-  - lpips
-metrics_config:
-  {
-    ssim: {
-      "reduction": none},
-    fid : {
-      "features_size": 2048,
-      },
-    lpips: {
-      "net_type": squeeze,
-      "reduction":mean,
-      "converter_type": soft
-    }
-  }
-
-
-verbose: True
-
-# Modalities as previously
-modality: rad
-
-# Number of epochs
-num_epochs: 1
-# Early stopping for now will be ignored - no idea how to apply it to synth tasks, possibly need to track some metrics,
-# not the losses directly
-patience: 0
-# Set the batch size
 batch_size: 1
-# In memory (disable lazy loading, as in Gandlf)
-in_memory: False
-
-
-# Augmentation, preprocessing and postprocessing are same as in Gandlf
-data_augmentation:
-  {
-
-  }
-data_preprocessing:
-  {
-  }
-data_postprocessing:
-  {
-
-  }
-
-# Configs for specific dataloaders. As we depart from the torchio subject dataloader
-# we can enable the user to configure the dataloaders as they see fit. If some dataloader
-# is not used in given run it's config will be ignored
+data_augmentation: {}
+data_postprocessing: {}
+data_preprocessing: {}
 dataloader_config:
-  {
-    train: {
-      num_workers: 0,
-      pin_memory: False,
-      drop_last: False,
-      shuffle: True
-    },
-    validation: {
-      num_workers: 0,
-      pin_memory: False,
-      drop_last: False,
-      shuffle: False
-    },
-    test: {
-      num_workers: 0,
-      pin_memory: False,
-      drop_last: False,
-      shuffle: False
-    },
-    inference: {
-      num_workers: 0,
-      pin_memory: False,
-      drop_last: False,
-      shuffle: False
-    }
-
-  }
-
+  inference:
+    drop_last: false
+    num_workers: 0
+    pin_memory: false
+    shuffle: false
+  test:
+    drop_last: false
+    num_workers: 0
+    pin_memory: false
+    shuffle: false
+  train:
+    drop_last: false
+    num_workers: 0
+    pin_memory: false
+    shuffle: true
+  validation:
+    drop_last: false
+    num_workers: 0
+    pin_memory: false
+    shuffle: false
+in_memory: false
+metrics:
+- ssim
+- fid
+- lpips
+metrics_config:
+  fid:
+    features_size: 2048
+  lpips:
+    converter_type: soft
+    net_type: squeeze
+    reduction: mean
+  ssim:
+    reduction: none
+modality: rad
+model_config:
+  amp: false
+  architecture:
+    discriminator_input_size:
+    - 128
+    - 128
+    generator_output_size:
+    - 128
+    - 128
+    latent_vector_size: 100
+  converter_type: soft
+  labeling_paradigm: unlabeled
+  losses:
+    discriminator:
+      name: BCELogits
+    generator:
+      name: BCELogits
+  model_name: dcgan
+  n_channels: 2
+  n_dimensions: 2
+  norm_type: batch
+  optimizers:
+    discriminator:
+      betas:
+      - 0.5
+      - 0.999
+      lr: 0.0002
+      name: adam
+      weight_decay: 0.0
+    generator:
+      betas:
+      - 0.5
+      - 0.999
+      lr: 0.0002
+      name: adam
+      weight_decay: 0.0
+  schedulers: {}
+num_epochs: 1
+patience: 0
+verbose: true
+version:
+  maximum: 0.0.20-dev
+  minimum: 0.0.14
