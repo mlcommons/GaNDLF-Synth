@@ -102,6 +102,10 @@ class UnlabeledDCGANModule(SynthesisModule):
         print("Validation step")
 
     # TODO
+    def test_step(self, batch: object, batch_idx: int) -> torch.Tensor:
+        print("Test step")
+
+    # TODO
     def inference_step(self, **kwargs) -> torch.Tensor:
         print("Inference step")
 

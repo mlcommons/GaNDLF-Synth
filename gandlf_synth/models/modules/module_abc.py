@@ -76,6 +76,18 @@ class SynthesisModule(ABC):
         pass
 
     @abstractmethod
+    def test_step(self, **kwargs) -> torch.Tensor:
+        """
+        Inference step for the synthesis module.
+
+        Args:
+            kwargs: Key-word arguments.
+        Returns:
+            output: Model output.
+        """
+        pass
+
+    @abstractmethod
     def inference_step(self, **kwargs) -> torch.Tensor:
         """
         Inference step for the synthesis module.
