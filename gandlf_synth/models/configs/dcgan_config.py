@@ -22,12 +22,10 @@ class UnlabeledDCGANConfig(AbstractModelConfig):
 
     @staticmethod
     def _validatie_params(model_config: dict) -> None:
-        assert (
-            "generator_output_size" in model_config["architecture"]
-        ), "`generator_output_size` must be defined in the `architecture` field of `model_config`."
-        assert (
-            "discriminator_input_size" in model_config["architecture"]
-        ), "`discriminator_input_size` must be defined in the `architecture` field of `model_config`."
+        if "leaky_relu_slope" in model_config["architecture"]:
+            assert (
+                model_config["architecture"]["leaky_relu_slope"] > 0
+            ), "Leaky ReLU slope must be greater than 0."
 
     def _set_default_params(self, model_config: dict) -> dict:
         for key, value in self.ARCHITECTURE_DEFAULT_PARAMS.items():
