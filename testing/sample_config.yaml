@@ -10,6 +10,7 @@ version:
 # here user will also provide config for the optimizers, schedulers, loss functions
 model_config:
   {
+    input_shape: [128, 128],
     model_name: "dcgan",
     n_dimensions: 2,
     n_channels: 2,
@@ -20,11 +21,10 @@ model_config:
 # if such usage is required. We need to decide how to name the labeling paradigms tho
 # maybe: "slice" (slice position in a volue as label), "patient": (patient id as label), "class_based" (class determined by user by splitting data into separate folders)
 
-    architecture :
+    architecture : # everything architecture-specific goes here
     {
       latent_vector_size: 100,
-      generator_output_size : [128, 128],
-      discriminator_input_size : [128, 128],
+
     },
     optimizers:
     {
@@ -95,14 +95,41 @@ in_memory: False
 # Augmentation, preprocessing and postprocessing are same as in Gandlf
 data_augmentation:
   {
+    
+    blur: {
+        probability: 0.5,
+        }
 
   }
 data_preprocessing:
   {
+    train: {
+      normalize,
+  },
+    validation: {
+      normalize,
+  },
+    test: {
+      normalize,
+  },
+    inference: {
+      normalize,
+    }
   }
 data_postprocessing:
   {
-
+    train: {
+      hole_filling
+  },
+    validation: {
+      hole_filling
+  },
+    test: {
+      hole_filling
+  },
+    inference: {
+      hole_filling
+    }
   }
 
 # Configs for specific dataloaders. As we depart from the torchio subject dataloader
