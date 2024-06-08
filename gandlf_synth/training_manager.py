@@ -311,6 +311,6 @@ class TrainingManager:
             if self.val_dataloader is not None:
                 for batch_idx, batch in enumerate(self.val_dataloader):
                     val_step_loss = self.module.validation_step(batch, batch_idx)
-            if self.test_dataloader is not None:
-                for batch_idx, batch in enumerate(self.test_dataloader):
-                    test_step_loss = self.module.testing_step(batch, batch_idx)
+        if self.test_dataloader is not None:
+            for batch_idx, batch in enumerate(self.test_dataloader):
+                test_step_loss = self.module.testing_step(batch, batch_idx)
