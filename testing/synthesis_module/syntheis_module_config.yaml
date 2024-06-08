@@ -57,6 +57,9 @@ model_config:
   
     latent_vector_size: 100
   converter_type: soft
+  input_shape:
+  - 128
+  - 128
   labeling_paradigm: unlabeled
   losses:
     discriminator:
