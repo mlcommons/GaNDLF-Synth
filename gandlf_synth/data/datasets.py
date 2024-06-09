@@ -14,11 +14,12 @@ class SynthesisDataset(Dataset):
     Base abstraction for a synthesis dataset.
     """
 
-    def __init__(self, csv_path: str, transforms: Optional[Compose] = None) -> None:
+    def __init__(
+        self, input_dataframe: pd.DataFrame, transforms: Optional[Compose] = None
+    ) -> None:
         super().__init__()
-        self.csv_path = csv_path
         self.transforms = transforms
-        self.csv_data = pd.read_csv(csv_path)
+        self.csv_data = input_dataframe
 
     @abstractmethod
     def __getitem__(self, index):
