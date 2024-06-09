@@ -24,16 +24,19 @@ global_metrics_dict = {
     "structural_similarity_index": structural_similarity_index,
 }
 
-from typing import List
+from typing import List, Union, Dict, Callable
 
 
-def get_metrics(metrics_params_dict: dict) -> dict[object]:
+def get_metrics(
+    metrics_params: Union[Dict[str, object], List[str]]
+) -> Dict[str, Callable]:
     """
     This function gets the metric transformations from the parameters.
 
     Args:
-        metrics_params_dict (dict): The dictionary containing the parameters for the metrics.
 
+        metrics_params (Union[Dict[str, object], List[str]]): The metrics parameters.
+    Can be a list of metric names or a dictionary of metric names and their parameters.
     Returns:
         dict[object]: The dict of metrics to be calculated.
     """
