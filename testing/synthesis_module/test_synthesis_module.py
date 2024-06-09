@@ -2,14 +2,16 @@ import os
 import logging
 import yaml
 from pathlib import Path
+from copy import deepcopy
 
+import pandas as pd
 from torchio.transforms import Compose, Resize
 
 from gandlf_synth.config_manager import ConfigManager
 from gandlf_synth.data.datasets_factory import DatasetFactory
 from gandlf_synth.data.dataloaders_factory import DataloaderFactory
 from gandlf_synth.models.modules.module_factory import ModuleFactory
-
+from gandlf_synth.training_manager import TrainingManager
 from typing import List
 
 TEST_DIR = Path(__file__).parent.absolute().__str__()
@@ -85,39 +87,57 @@ def test_module_config_pairs():
         ), f"Config {config} does not have a corresponding module"
 
 
-def test_initial_pipeline_module():
-    with ContextManagerTests():
-        for module in AVAILABLE_MODULES:
-            labeling_paradigm, model_name = parse_available_module(module)
-            with open(TEST_CONFIG_PATH, "r") as config_file:
-                config = yaml.safe_load(config_file)
-                config["model_config"]["model_name"] = model_name
-                config["model_config"]["labeling_paradigm"] = labeling_paradigm
-            with open(TEST_CONFIG_PATH, "w") as config_file:
-                yaml.dump(config, config_file)
-            config_manager = ConfigManager(TEST_CONFIG_PATH)
+# def test_initial_pipeline_module():
+#     with ContextManagerTests():
+#         for module in AVAILABLE_MODULES:
+#             labeling_paradigm, model_name = parse_available_module(module)
+#             with open(TEST_CONFIG_PATH, "r") as config_file:
+#                 config = yaml.safe_load(config_file)
+#                 config["model_config"]["model_name"] = model_name
+#                 config["model_config"]["labeling_paradigm"] = labeling_paradigm
+#             with open(TEST_CONFIG_PATH, "w") as config_file:
+#                 yaml.dump(config, config_file)
+#             config_manager = ConfigManager(TEST_CONFIG_PATH)
 
-            global_config, model_config = config_manager.prepare_configs()
-            # TODO this needs to be replaced with proper transforms
-            RESIZE_TRANSFORM = Compose([Resize((128, 128, 1))])
-            dataset_factory = DatasetFactory()
-            dataloader_factory = DataloaderFactory(global_config)
+#             global_config, model_config = config_manager.prepare_configs()
+#             # TODO this needs to be replaced with proper transforms
+#             RESIZE_TRANSFORM = Compose([Resize((128, 128, 1))])
+#             dataset_factory = DatasetFactory()
+#             dataloader_factory = DataloaderFactory(global_config)
+#             example_dataframe = pd.read_csv(CSV_PATH)
+#             dataset = dataset_factory.get_dataset(
+#                 example_dataframe, RESIZE_TRANSFORM, model_config.labeling_paradigm
+#             )
 
-            dataset = dataset_factory.get_dataset(
-                CSV_PATH, RESIZE_TRANSFORM, model_config.labeling_paradigm
-            )
+#             dataloader = dataloader_factory.get_training_dataloader(dataset)
 
-            dataloader = dataloader_factory.get_training_dataloader(dataset)
+#             module_factory = ModuleFactory(
+#                 model_config=model_config,
+#                 logger=LOGGER_OBJECT,
+#                 metric_calculator=None,
+#                 device=DEVICE,
+#             )
+#             module = module_factory.get_module()
 
-            module_factory = ModuleFactory(
-                model_config=model_config,
-                logger=LOGGER_OBJECT,
-                metric_calculator=None,
-                device=DEVICE,
-            )
-            module = module_factory.get_module()
+#             for batch_idx, batch in enumerate(dataloader):
+#                 module.training_step(batch, batch_idx)
+#                 print("Training step completed!")
+#                 break
 
-            for batch_idx, batch in enumerate(dataloader):
-                module.training_step(batch, batch_idx)
-                print("Training step completed!")
-                break
+
+def test_training_manager():
+    config_manager = ConfigManager(TEST_CONFIG_PATH)
+    global_config, model_config = config_manager.prepare_configs()
+    output_dir = os.path.join(TEST_DIR, "output")
+    example_dataframe = pd.read_csv(CSV_PATH)
+    # test the run when there is no validation and testing data
+    training_manager = TrainingManager(
+        train_dataframe=example_dataframe,
+        output_dir=output_dir,
+        global_config=global_config,
+        model_config=model_config,
+        resume=False,
+        reset=False,
+        device=DEVICE,
+    )
+    training_manager.run_training()

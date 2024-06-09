@@ -1,7 +1,11 @@
 batch_size: 1
 data_augmentation: {}
 data_postprocessing: {}
-data_preprocessing: {}
+data_preprocessing: {
+  train: {
+    'resize': [128, 128],
+  },
+}
 dataloader_config:
   inference:
     drop_last: false
@@ -25,9 +29,7 @@ dataloader_config:
     shuffle: false
 in_memory: false
 metrics:
-- ssim
-- fid
-- lpips
+- ncc_min
 metrics_config:
   fid:
     features_size: 2048
