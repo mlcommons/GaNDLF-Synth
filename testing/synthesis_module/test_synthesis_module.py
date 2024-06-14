@@ -141,3 +141,49 @@ def test_training_manager():
         device=DEVICE,
     )
     training_manager.run_training()
+    # Test with val and test data provided
+
+    global_config, model_config = config_manager.prepare_configs()
+    training_manager = TrainingManager(
+        train_dataframe=example_dataframe,
+        output_dir=output_dir,
+        global_config=global_config,
+        model_config=model_config,
+        resume=False,
+        reset=False,
+        device=DEVICE,
+        val_dataframe=example_dataframe,
+        test_dataframe=example_dataframe,
+    )
+    training_manager.run_training()
+    # Test using val and test percentages
+    global_config, model_config = config_manager.prepare_configs()
+    training_manager = TrainingManager(
+        train_dataframe=example_dataframe,
+        output_dir=output_dir,
+        global_config=global_config,
+        model_config=model_config,
+        resume=False,
+        reset=False,
+        device=DEVICE,
+        val_ratio=0.1,
+        test_ratio=0.1,
+    )
+    training_manager.run_training()
+
+    # Test fallback to dataframes when both provided
+    global_config, model_config = config_manager.prepare_configs()
+    training_manager = TrainingManager(
+        train_dataframe=example_dataframe,
+        output_dir=output_dir,
+        global_config=global_config,
+        model_config=model_config,
+        resume=False,
+        reset=False,
+        device=DEVICE,
+        val_ratio=0.1,
+        test_ratio=0.1,
+        val_dataframe=example_dataframe,
+        test_dataframe=example_dataframe,
+    )
+    training_manager.run_training()

@@ -41,8 +41,8 @@ class TrainingManager:
         device: str,
         val_dataframe: Optional[pd.DataFrame] = None,
         test_dataframe: Optional[pd.DataFrame] = None,
-        val_ratio: Optional[float] = 0,
-        test_ratio: Optional[float] = 0,
+        val_ratio: Optional[float] = 0.0,
+        test_ratio: Optional[float] = 0.0,
     ):
         """
         Initialize the TrainingManager.
@@ -128,16 +128,16 @@ class TrainingManager:
         if self.val_dataframe is None and self.val_ratio != 0:
             warn(
                 "Validation data is not provided, and the validation ratio is set to a non-zero value. "
-                "Validation data will be extracted from the training data.",
-                "IMPORTANT: samples from the training data will be RANDOMLY selected REGARDLESS of the subjects they come from.",
+                "Validation data will be extracted from the training data. "
+                "IMPORTANT: samples from the training data will be RANDOMLY selected REGARDLESS of the subjects they come from. "
                 "If you want to avoid samples from the same subject to be split between training and validation, provide a validation dataframe.",
                 UserWarning,
             )
         if self.test_dataframe is None and self.test_ratio != 0:
             warn(
                 "Test data is not provided, and the test ratio is set to a non-zero value. "
-                "Test data will be extracted from the training data.",
-                "IMPORTANT: samples from the training data will be RANDOMLY selected REGARDLESS of the subjects they come from.",
+                "Test data will be extracted from the training data. "
+                "IMPORTANT: samples from the training data will be RANDOMLY selected REGARDLESS of the subjects they come from. "
                 "If you want to avoid samples from the same subject to be split between training and testing, provide a test dataframe.",
                 UserWarning,
             )
