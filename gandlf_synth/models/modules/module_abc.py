@@ -204,6 +204,7 @@ class SynthesisModule(ABC):
         used mostly for versioning.
 
         """
+
         basic_model_path = os.path.join(model_dir)
         if suffix is not None:
             basic_model_path = os.path.join(basic_model_path, suffix)
@@ -264,3 +265,57 @@ class SynthesisModule(ABC):
             for key, value in data.items():
                 data[key] = value.to(self.device)
             return data
+
+    def _on_train_epoch_start(self, epoch: int) -> None:
+        """
+        Function to be called at the start of the epoch.
+
+        Args:
+            epoch (int): Current epoch.
+        """
+        pass
+
+    def _on_validation_epoch_start(self, epoch: int) -> None:
+        """
+        Function to be called at the start of the validation.
+
+        Args:
+            epoch (int): Current epoch.
+        """
+        pass
+
+    def _on_test_start(self, epoch: int) -> None:
+        """
+        Function to be called at the start of the test.
+
+        Args:
+            epoch (int): Current epoch.
+        """
+        pass
+
+    def _on_train_epoch_end(self, epoch: int) -> None:
+        """
+        Function to be called at the end of the epoch.
+
+        Args:
+            epoch (int): Current epoch.
+        """
+        pass
+
+    def _on_validation_epoch_end(self, epoch: int) -> None:
+        """
+        Function to be called at the end of the validation.
+
+        Args:
+            epoch (int): Current epoch.
+        """
+        pass
+
+    def _on_test_end(self, epoch: int) -> None:
+        """
+        Function to be called at the end of the test.
+
+        Args:
+            epoch (int): Current epoch.
+        """
+        pass
