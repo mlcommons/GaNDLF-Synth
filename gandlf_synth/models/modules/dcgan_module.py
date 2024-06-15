@@ -184,9 +184,56 @@ class UnlabeledDCGANModule(SynthesisModule):
         self._log("test_disc_loss", disc_loss)
         self._log("test_gen_loss", gen_loss)
 
+        disc_loss = self.losses["disc_loss"](
+            disc_preds_real, real_labels
+        ) + self.losses["disc_loss"](disc_preds_fake, fake_labels)
+        gen_loss = self.losses["gen_loss"](disc_preds_fake, real_labels)
+
+        if self.metric_calculator is not None:
+            metric_results = {}
+            for metric_name, metric in self.metric_calculator.items():
+                val_metric_name = f"val_{metric_name}"
+                metric_results[val_metric_name] = metric(real_images, generated_images)
+            self._log_dict(metric_results)
+        self._log("val_disc_loss", disc_loss)
+        self._log("val_gen_loss", gen_loss)
+
+    # TODO does this method even have sense in that form? It's pretty much the same
+    # as the validation step
     @torch.no_grad
     def test_step(self, batch: object, batch_idx: int) -> torch.Tensor:
-        print("Test step")
+        real_images = self._ensure_device_placement(batch)
+        real_labels = torch.full(
+            (real_images.shape[0], 1),
+            fill_value=1.0,
+            dtype=torch.float,
+            device=self.device,
+        )
+        fake_labels = real_labels.copy_().fill_(0.0)
+        batch_size = real_images.shape[0]
+        latent_vector = generate_latent_vector(
+            batch_size,
+            self.model_config.architecture["latent_vector_size"],
+            self.model_config.n_dimensions,
+            self.device,
+        )
+        generated_images = self.model.generator(latent_vector)
+        disc_preds_real = self.model.discriminator(real_images)
+        disc_preds_fake = self.model.discriminator(generated_images)
+
+        disc_loss = self.losses["disc_loss"](
+            disc_preds_real, real_labels
+        ) + self.losses["disc_loss"](disc_preds_fake, fake_labels)
+        gen_loss = self.losses["gen_loss"](disc_preds_fake, real_labels)
+
+        if self.metric_calculator is not None:
+            metric_results = {}
+            for metric_name, metric in self.metric_calculator.items():
+                test_metric_name = f"test_{metric_name}"
+                metric_results[test_metric_name] = metric(real_images, generated_images)
+            self._log_dict(metric_results)
+        self._log("test_disc_loss", disc_loss)
+        self._log("test_gen_loss", gen_loss)
 
     @torch.no_grad
     def inference_step(self, **kwargs) -> torch.Tensor:
