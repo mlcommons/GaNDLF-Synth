@@ -184,7 +184,11 @@ class UnlabeledDCGANModule(SynthesisModule):
         self._log("test_disc_loss", disc_loss)
         self._log("test_gen_loss", gen_loss)
 
-    # TODO
+    @torch.no_grad
+    def test_step(self, batch: object, batch_idx: int) -> torch.Tensor:
+        print("Test step")
+
+    @torch.no_grad
     def inference_step(self, **kwargs) -> torch.Tensor:
         print("Inference step")
         n_images_to_generate = kwargs.get("n_images_to_generate", None)
