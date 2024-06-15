@@ -204,7 +204,6 @@ class SynthesisModule(ABC):
         used mostly for versioning.
 
         """
-
         basic_model_path = os.path.join(model_dir)
         if suffix is not None:
             basic_model_path = os.path.join(basic_model_path, suffix)
