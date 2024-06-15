@@ -1,8 +1,9 @@
+import os
 import warnings
 
 import torch
 from torch import nn
-
+from torchvision.utils import save_image
 
 from gandlf_synth.models.architectures.base_model import ModelBase
 from gandlf_synth.models.architectures.dcgan import DCGAN
@@ -110,13 +111,78 @@ class UnlabeledDCGANModule(SynthesisModule):
                 metric_results[metric_name] = metric(real_images, fake_images.detach())
             self._log_dict(metric_results)
 
+    # TODO does this method even have sense in that form?
     @torch.no_grad
     def validation_step(self, batch: object, batch_idx: int) -> torch.Tensor:
-        pass
+        real_images = self._ensure_device_placement(batch)
+        real_labels = torch.full(
+            (real_images.shape[0], 1),
+            fill_value=1.0,
+            dtype=torch.float,
+            device=self.device,
+        )
+        fake_labels = real_labels.copy_().fill_(0.0)
+        batch_size = real_images.shape[0]
+        latent_vector = generate_latent_vector(
+            batch_size,
+            self.model_config.architecture["latent_vector_size"],
+            self.model_config.n_dimensions,
+            self.device,
+        )
+        generated_images = self.model.generator(latent_vector)
+        disc_preds_real = self.model.discriminator(real_images)
+        disc_preds_fake = self.model.discriminator(generated_images)
 
-    # TODO
+        disc_loss = self.losses["disc_loss"](
+            disc_preds_real, real_labels
+        ) + self.losses["disc_loss"](disc_preds_fake, fake_labels)
+        gen_loss = self.losses["gen_loss"](disc_preds_fake, real_labels)
+
+        if self.metric_calculator is not None:
+            metric_results = {}
+            for metric_name, metric in self.metric_calculator.items():
+                val_metric_name = f"val_{metric_name}"
+                metric_results[val_metric_name] = metric(real_images, generated_images)
+            self._log_dict(metric_results)
+        self._log("val_disc_loss", disc_loss)
+        self._log("val_gen_loss", gen_loss)
+
+    # TODO does this method even have sense in that form? It's pretty much the same
+    # as the validation step
+    @torch.no_grad
     def test_step(self, batch: object, batch_idx: int) -> torch.Tensor:
-        print("Test step")
+        real_images = self._ensure_device_placement(batch)
+        real_labels = torch.full(
+            (real_images.shape[0], 1),
+            fill_value=1.0,
+            dtype=torch.float,
+            device=self.device,
+        )
+        fake_labels = real_labels.copy_().fill_(0.0)
+        batch_size = real_images.shape[0]
+        latent_vector = generate_latent_vector(
+            batch_size,
+            self.model_config.architecture["latent_vector_size"],
+            self.model_config.n_dimensions,
+            self.device,
+        )
+        generated_images = self.model.generator(latent_vector)
+        disc_preds_real = self.model.discriminator(real_images)
+        disc_preds_fake = self.model.discriminator(generated_images)
+
+        disc_loss = self.losses["disc_loss"](
+            disc_preds_real, real_labels
+        ) + self.losses["disc_loss"](disc_preds_fake, fake_labels)
+        gen_loss = self.losses["gen_loss"](disc_preds_fake, real_labels)
+
+        if self.metric_calculator is not None:
+            metric_results = {}
+            for metric_name, metric in self.metric_calculator.items():
+                test_metric_name = f"test_{metric_name}"
+                metric_results[test_metric_name] = metric(real_images, generated_images)
+            self._log_dict(metric_results)
+        self._log("test_disc_loss", disc_loss)
+        self._log("test_gen_loss", gen_loss)
 
     # TODO
     def inference_step(self, **kwargs) -> torch.Tensor:
@@ -188,7 +254,7 @@ class UnlabeledDCGANModule(SynthesisModule):
             "plateau",
             "reduce-on-plateau",
             "reduce_on_plateau",
-        ]
+        ]  # We do not support these schedulers for the DCGAN model
         disc_scheduler = None
         gen_scheduler = None
         if self.model_config.schedulers is not None:
@@ -205,3 +271,49 @@ class UnlabeledDCGANModule(SynthesisModule):
                 ), f"Scheduler {gen_scheduler_config.keys()[0]} is not supported for the DCGAN model."
                 gen_scheduler = get_scheduler(gen_scheduler_config)
         return {"disc_scheduler": disc_scheduler, "gen_scheduler": gen_scheduler}
+
+    def _generate_image_set_from_fixed_vector(
+        self, n_images_to_generate
+    ) -> torch.Tensor:
+        fixed_latent_vector = get_fixed_latent_vector(
+            n_images_to_generate,
+            self.model_config.architecture["latent_vector_size"],
+            self.model_config.n_dimensions,
+            self.device,
+            self.model_config.fixed_latent_vector_seed,
+        )
+        fake_images = self.model.generator(fixed_latent_vector)
+        return fake_images
+
+    # TODO can we make it nicer? It's a bit of a mess, plus maybe saving can be
+    # done in parallel?
+    def _on_train_epoch_end(self, epoch: int) -> None:
+        eval_save_interval = self.model_config.save_eval_images_every_n_epochs
+        if eval_save_interval > 0 and epoch % eval_save_interval == 0:
+            fixed_images_save_path = os.path.join(
+                self.model_dir, "eval_images", f"epoch_{epoch}"
+            )
+            last_batch_size = (
+                self.model_config.n_fixed_images_to_generate
+                % self.model_config.fixed_images_batch_size
+            )
+            n_batches = (
+                self.model_config.n_fixed_images_to_generate
+                // self.model_config.fixed_images_batch_size
+            )
+            if last_batch_size > 0:
+                n_batches += 1
+            for i in range(n_batches):
+                n_images_to_generate = self.model_config.fixed_images_batch_size
+                if i == n_batches - 1:
+                    n_images_to_generate = last_batch_size
+                fake_images = self._generate_image_set_from_fixed_vector(
+                    n_images_to_generate
+                )
+                for n, fake_image in enumerate(fake_images):
+                    save_image(
+                        fake_image,
+                        os.path.join(
+                            fixed_images_save_path, f"fake_image_{i*n + n}.png"
+                        ),
+                    )
