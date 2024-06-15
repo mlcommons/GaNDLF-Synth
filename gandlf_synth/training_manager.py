@@ -338,12 +338,18 @@ class TrainingManager:
         for epoch in range(self.global_config["num_epochs"]):
             for batch_idx, batch in enumerate(self.train_dataloader):
                 self._assert_input_correctness(batch_idx, batch)
-                train_step_loss = self.module.training_step(batch, batch_idx)
+                self.module._on_train_epoch_start(epoch)
+                self.module.training_step(batch, batch_idx)
+                self.module._on_train_epoch_end(epoch)
             if self.val_dataloader is not None:
                 for batch_idx, batch in enumerate(self.val_dataloader):
                     self._assert_input_correctness(batch_idx, batch)
-                    val_step_loss = self.module.validation_step(batch, batch_idx)
+                    self.module.validation_step(batch, batch_idx)
+                    self.module.validation_step(batch, batch_idx)
+                    self.module._on_validation_epoch_end(epoch)
         if self.test_dataloader is not None:
             for batch_idx, batch in enumerate(self.test_dataloader):
                 self._assert_input_correctness(batch_idx, batch)
-                test_step_loss = self.module.test_step(batch, batch_idx)
+                self.module._on_test_start()
+                self.module.test_step(batch, batch_idx)
+                self.module._on_test_end()
