@@ -2,7 +2,7 @@ import warnings
 
 import torch
 from torch import nn
-from torch.optim.lr_scheduler import _LRScheduler
+
 
 from gandlf_synth.models.architectures.base_model import ModelBase
 from gandlf_synth.models.architectures.dcgan import DCGAN
@@ -14,6 +14,8 @@ from gandlf_synth.utils.generators import (
 )
 from gandlf_synth.optimizers import get_optimizer
 from gandlf_synth.losses import get_loss
+from gandlf_synth.schedulers import get_scheduler
+
 from typing import Dict, Union
 
 
@@ -47,6 +49,7 @@ class UnlabeledDCGANModule(SynthesisModule):
         # DISCRIMINATOR PASS WITH FAKE IMAGES
         label_fake = label_real.fill_(0.0)  # swap the labels for fake images
         fake_images = self.model.generator(latent_vector)
+
         preds_fake = self.model.discriminator(fake_images.detach())
         disc_loss_fake = self.losses["disc_loss"](preds_fake, label_fake)
         backward_pass(
@@ -68,6 +71,9 @@ class UnlabeledDCGANModule(SynthesisModule):
                 f"NaN loss detected in discriminator step for batch {batch_idx}, the step will be skipped",
                 RuntimeWarning,
             )
+        # Scheduler step
+        if self.schedulers["disc_scheduler"] is not None:
+            self.schedulers["disc_scheduler"].step()
 
         # GENERATOR PASS
         self.optimizers["gen_optimizer"].zero_grad(set_to_none=True)
@@ -91,6 +97,11 @@ class UnlabeledDCGANModule(SynthesisModule):
                 f"NaN loss detected in generator step for batch {batch_idx}, the step will be skipped",
                 RuntimeWarning,
             )
+
+        # Scheduler step
+        if self.schedulers["gen_scheduler"] is not None:
+            self.schedulers["gen_scheduler"].step()
+
         self._log("disc_loss", loss_disc)
         self._log("gen_loss", gen_loss)
         if self.metric_calculator is not None:
@@ -99,9 +110,9 @@ class UnlabeledDCGANModule(SynthesisModule):
                 metric_results[metric_name] = metric(real_images, fake_images.detach())
             self._log_dict(metric_results)
 
-    # TODO
+    @torch.no_grad
     def validation_step(self, batch: object, batch_idx: int) -> torch.Tensor:
-        print("Validation step")
+        pass
 
     # TODO
     def test_step(self, batch: object, batch_idx: int) -> torch.Tensor:
@@ -110,8 +121,18 @@ class UnlabeledDCGANModule(SynthesisModule):
     # TODO
     def inference_step(self, **kwargs) -> torch.Tensor:
         print("Inference step")
+        n_images_to_generate = kwargs.get("n_images_to_generate", None)
+        assert (
+            n_images_to_generate is not None
+        ), "Number of images to generate is required during the inference pass."
 
-    def forward(self, *args, **kwargs) -> torch.Tensor:
+        fake_images = self.forward(n_images_to_generate=n_images_to_generate)
+        if self.postprocessing_transforms is not None:
+            for transform in self.postprocessing_transforms:
+                fake_images = transform(fake_images)
+        return fake_images
+
+    def forward(self, **kwargs) -> torch.Tensor:
         """
         Forward pass of the unlabeled DCGAN module. This method is considered
         a call to a generator to produce given number of images.
@@ -154,7 +175,6 @@ class UnlabeledDCGANModule(SynthesisModule):
         )
         return {"disc_optimizer": disc_optimizer, "gen_optimizer": gen_optimizer}
 
-    # TODO Not really that important now
     def _initialize_schedulers(
         self,
     ) -> Union[
@@ -162,13 +182,26 @@ class UnlabeledDCGANModule(SynthesisModule):
         Dict[str, torch.optim.lr_scheduler._LRScheduler],
         None,
     ]:
-        print("Initializing schedulers")
-        return None
-
-    # TODO
-    def save_checkpoint(self) -> None:
-        print("Saving checkpoint!")
-
-    # TODO
-    def load_checkpoint(self) -> None:
-        print("Loading checkpoint!")
+        # For more info on scheduler parsing check the get_scheduler function in the schedulers/__init__.py
+        UNSUPPORTED_SCHEDULERS = [
+            "reduceonplateau",
+            "plateau",
+            "reduce-on-plateau",
+            "reduce_on_plateau",
+        ]
+        disc_scheduler = None
+        gen_scheduler = None
+        if self.model_config.schedulers is not None:
+            if "discriminator" in self.model_config.schedulers:
+                disc_scheduler_config = self.model_config.schedulers["discriminator"]
+                assert (
+                    disc_scheduler_config not in UNSUPPORTED_SCHEDULERS
+                ), f"Scheduler {disc_scheduler_config.keys()[0]} is not supported for the DCGAN model."
+                disc_scheduler = get_scheduler(disc_scheduler_config)
+            if "generator" in self.model_config.schedulers:
+                gen_scheduler_config = self.model_config.schedulers["generator"]
+                assert (
+                    gen_scheduler_config not in UNSUPPORTED_SCHEDULERS
+                ), f"Scheduler {gen_scheduler_config.keys()[0]} is not supported for the DCGAN model."
+                gen_scheduler = get_scheduler(gen_scheduler_config)
+        return {"disc_scheduler": disc_scheduler, "gen_scheduler": gen_scheduler}
