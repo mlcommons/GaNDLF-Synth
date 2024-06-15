@@ -5,7 +5,7 @@ from gandlf_synth.models.modules.module_abc import SynthesisModule
 from gandlf_synth.models.modules.dcgan_module import UnlabeledDCGANModule
 from gandlf_synth.models.configs.config_abc import AbstractModelConfig
 
-from typing import Type, Optional
+from typing import Type, Optional, Dict, List, Callable
 
 
 class ModuleFactory:
@@ -18,7 +18,8 @@ class ModuleFactory:
         self,
         model_config: Type[AbstractModelConfig],
         logger: Logger,
-        metric_calculator: Optional[object] = None,
+        metric_calculator: Optional[Dict[str, object]] = None,
+        postprocessing_transforms: Optional[List[Callable]] = None,
         device: str = "cpu",
     ):
         """
@@ -27,12 +28,15 @@ class ModuleFactory:
         Args:
             model_config (Type[AbstractModelConfig]): The model configuration object.
             logger (Logger): The logger object.
+            metric_calculator (dict, optional): The metric calculator dictionary. Defaults to None.
+            postprocessing_transforms (List[Callable], optional): The postprocessing transformations to apply. Defaults to None.
             device (str, optional): The device to perform computations on. Defaults to "cpu".
         """
 
         self.model_config = model_config
         self.logger = logger
         self.metric_calculator = metric_calculator
+        self.postprocessing_transforms = postprocessing_transforms
         self.device = torch_device(device)
 
     def _parse_module_name(self) -> str:
@@ -63,5 +67,6 @@ class ModuleFactory:
             model_config=self.model_config,
             logger=self.logger,
             metric_calculator=self.metric_calculator,
+            postprocessing_transforms=self.postprocessing_transforms,
             device=self.device,
         )
