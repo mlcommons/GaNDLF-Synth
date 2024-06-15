@@ -14,7 +14,9 @@ from gandlf_synth.metrics import get_metrics
 from gandlf_synth.data.preprocessing import get_preprocessing_transforms
 from GANDLF.data.augmentation import get_augmentation_transforms
 
-from typing import List, Optional, Type, Union
+from gandlf_synth.data.postprocessing import get_postprocessing_transforms
+
+from typing import List, Optional, Type, Callable
 
 # TODO this config is temporary/scratch
 BASIC_LOGGER_CONFIG = basicConfig(
@@ -80,7 +82,6 @@ class TrainingManager:
         self._warn_user()
 
         self.metric_calculator_dict = self._prepare_metric_calculator()
-        self.postprocessing_transforms = self._prepare_postprocessing_transforms()
         self.logger = self._prepare_logger()
 
         (
@@ -94,6 +95,7 @@ class TrainingManager:
             logger=self.logger,
             metric_calculator=self.metric_calculator_dict,
             device=self.device,
+            postprocessing_transforms=self._prepare_postprocessing_transforms(),
         )
         self.module = module_factory.get_module()
 
@@ -192,13 +194,17 @@ class TrainingManager:
         logger = Logger("GandlfSynthTrainingManager")
         return logger
 
-    # TODO
-    def _prepare_postprocessing_transforms(self) -> Compose:
+    def _prepare_postprocessing_transforms(self) -> List[Callable]:
         """
         Prepare the postprocessing transforms
         """
-        print("Preparing postprocessing transforms")
-        pass
+        postprocessing_transforms = None
+        postprocessing_config = self.global_config.get("data_postprocessing")
+        if postprocessing_config is not None:
+            postprocessing_transforms = get_postprocessing_transforms(
+                postprocessing_config
+            )
+        return postprocessing_transforms
 
     @staticmethod
     def _prepare_transforms(
