@@ -90,6 +90,7 @@ class SynthesisModule(ABC):
         pass
 
     @abstractmethod
+    @torch.no_grad
     def test_step(self, **kwargs) -> torch.Tensor:
         """
         Inference step for the synthesis module.
@@ -102,6 +103,7 @@ class SynthesisModule(ABC):
         pass
 
     @abstractmethod
+    @torch.no_grad
     def inference_step(self, **kwargs) -> torch.Tensor:
         """
         Inference step for the synthesis module.
