@@ -1,14 +1,15 @@
+import os
+from logging import Logger
 from abc import ABC, abstractmethod
 
 import torch
 from torch import nn
 from torch import optim
 
-from logging import Logger
-from typing import Dict, Union, Optional, Type
-
 from gandlf_synth.models.configs.config_abc import AbstractModelConfig
 from gandlf_synth.models.architectures.base_model import ModelBase
+
+from typing import Dict, Union, Optional, Type, List, Callable
 
 
 class SynthesisModule(ABC):
@@ -21,7 +22,8 @@ class SynthesisModule(ABC):
         self,
         model_config: Type[AbstractModelConfig],
         logger: Logger,
-        metric_calculator: Optional[object] = None,
+        metric_calculator: Optional[dict] = None,
+        postprocessing_transforms: Optional[List[Callable]] = None,
         device: str = "cpu",
     ) -> None:
         """Initialize the synthesis module.
@@ -30,6 +32,7 @@ class SynthesisModule(ABC):
             params (dict): Dictionary of parameters.
             logger (Logger): Logger for logging the values.
             metric_calculator (object,optional): Metric calculator object.
+            postprocessing_transforms (List[Callable], optional): Postprocessing transformations to apply.
             device (str, optional): Device to perform computations on. Defaults to "cpu".
         """
 
@@ -38,6 +41,7 @@ class SynthesisModule(ABC):
         self.model_config = model_config
         self.logger = logger
         self.metric_calculator = metric_calculator
+        self.postprocessing_transforms = postprocessing_transforms
         self.device = torch.device(device)
         self.model = self._initialize_model()
         self.optimizers = self._initialize_optimizers()
@@ -62,6 +66,7 @@ class SynthesisModule(ABC):
         pass
 
     @abstractmethod
+    @torch.no_grad
     def validation_step(self, batch: object, batch_idx: int) -> torch.Tensor:
         """
         Validation step for the synthesis module.
@@ -171,26 +176,54 @@ class SynthesisModule(ABC):
         """
         pass
 
-    @abstractmethod
-    def save_checkpoint(self) -> None:
+    def save_checkpoint(self, model_dir: str, suffix: Optional[str] = None) -> None:
         """
-        Define the logic for saving the model checkpoint.
-        It should provide the ability to save the model state, optimizer state and
-        other relevant information. Also this will help us to solve the
-        multi module problem (i.e. saving generator and discriminator).
-        # TODO : Determine the convention for saving the model.
-        """
-        pass
+        Save the model checkpoint into specified run directory. If specieifd, add suffix
+        to the filename to save specific version.
 
-    @abstractmethod
-    def load_checkpoint(self) -> None:
+        Args:
+            model_dir (str) : Directory with run files stored.
+            suffix (Optional[str]) : Optional suffix to be added to the filename,
+        used mostly for versioning.
+
         """
-        Define the logic for loading the model checkpoint.
-        It should provide the ability to load the model state, optimizer state and
-        other relevant information. Also this will help us to solve the
-        multi module problem (i.e. loading generator and discriminator).
+        basic_model_path = os.path.join(model_dir)
+        if suffix is not None:
+            basic_model_path = os.path.join(basic_model_path, suffix)
+        state_dict = self.model.state_dict().to("cpu")
+        torch.save(state_dict, basic_model_path)
+
+    def load_checkpoint(self, model_dir: str, suffix: Optional[str] = None) -> None:
         """
-        pass
+        Load the model checkpoint from specified run directory. If specieifd, add suffix
+        to the filename to load specific ones.
+
+        Args:
+            model_dir (str) : Directory with run files stored.
+            suffix (Optional[str]) : Optional suffix to be added to the filename,
+        used mostly for versioning.
+
+        """
+        basic_model_path = os.path.join(model_dir)
+        if suffix is not None:
+            basic_model_path = os.path.join(basic_model_path, suffix)
+
+        state_dict = torch.load(basic_model_path, map_location="cpu").to(self.device)
+        self.model.load_state_dict(state_dict=state_dict)
+
+    def _apply_postprocessing(self, data_to_transform: torch.Tensor) -> torch.Tensor:
+        """
+        Applies postprocessing transformations to the data.
+
+        Args:
+            data_to_transform (torch.Tensor): Data to transform.
+
+        Returns:
+            transformed_data (torch.Tensor): Transformed data.
+        """
+        for self.data_transform in self.postprocessing_transforms:
+            data_to_transform = self.data_transform(data_to_transform)
+        return data_to_transform
 
     def _log(self, value_name: str, value_to_log: float) -> None:
         """
