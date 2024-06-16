@@ -1,9 +1,9 @@
-import pandas as pd
-import os, pickle, shutil
-from pathlib import Path
+import os
+import shutil
 from warnings import warn
 from logging import Logger, basicConfig
 
+import pandas as pd
 from torchio.transforms import Compose
 
 from gandlf_synth.models.configs.config_abc import AbstractModelConfig
@@ -18,11 +18,6 @@ from GANDLF.data.augmentation import get_augmentation_transforms
 from typing import List, Optional, Type, Callable
 
 # TODO this config is temporary/scratch
-BASIC_LOGGER_CONFIG = basicConfig(
-    filemode="w",
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-    level="INFO",
-)
 
 
 class TrainingManager:
@@ -82,7 +77,7 @@ class TrainingManager:
 
         self.metric_calculator_dict = self._prepare_metric_calculator()
         self.logger = self._prepare_logger()
-
+        self._prepare_output_dir()
         (
             self.train_dataloader,
             self.val_dataloader,
@@ -92,6 +87,7 @@ class TrainingManager:
         module_factory = ModuleFactory(
             model_config=self.model_config,
             logger=self.logger,
+            model_dir=self.output_dir,
             metric_calculator=self.metric_calculator_dict,
             device=self.device,
             postprocessing_transforms=self._prepare_postprocessing_transforms(),
@@ -192,6 +188,16 @@ class TrainingManager:
         """
         logger = Logger("GandlfSynthTrainingManager")
         return logger
+
+    def _prepare_output_dir(self):
+        """
+        Prepare the output directory for the training process.
+        """
+        if self.reset:
+            shutil.rmtree(self.output_dir)
+
+        if not os.path.exists(self.output_dir):
+            os.makedirs(self.output_dir)
 
     def _prepare_postprocessing_transforms(self) -> List[Callable]:
         """
@@ -335,6 +341,7 @@ class TrainingManager:
         Train the model.
         """
         # CAUTION - keep careful when dealing with multiple batches and split images (slices)
+        self.module.save_checkpoint(suffix="_start")
         for epoch in range(self.global_config["num_epochs"]):
             for batch_idx, batch in enumerate(self.train_dataloader):
                 self._assert_input_correctness(batch_idx, batch)
@@ -347,9 +354,14 @@ class TrainingManager:
                     self.module._on_validation_epoch_start(batch, batch_idx)
                     self.module.validation_step(batch, batch_idx)
                     self.module._on_validation_epoch_end(epoch)
+            if self.global_config["save_model_every_n_epochs"] != -1 and (
+                epoch % self.global_config["save_model_every_n_epochs"] == 0
+            ):
+                self.module.save_checkpoint(suffix=f"_epoch_{epoch}")
+        self.module.save_checkpoint(suffix="_last")
         if self.test_dataloader is not None:
             for batch_idx, batch in enumerate(self.test_dataloader):
                 self._assert_input_correctness(batch_idx, batch)
                 self.module._on_test_start()
                 self.module.test_step(batch, batch_idx)
-                self.module._on_test_end()
+                self.module._on_test_end(epoch)
