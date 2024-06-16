@@ -15,6 +15,7 @@ from gandlf_synth.version import __version__
 from gandlf_synth.models.configs.config_abc import AbstractModelConfig
 from gandlf_synth.models.architectures.base_model import ModelBase
 
+
 from typing import Dict, Union, Optional, Type, List, Callable
 
 
@@ -35,13 +36,17 @@ class SynthesisModule(ABC):
     ) -> None:
         """Initialize the synthesis module.
 
-        Args:
-            params (dict): Dictionary of parameters.
-            logger (Logger): Logger for logging the values.
-            model_dir (str) : Model and results output directory.
-            metric_calculator (object,optional): Metric calculator object.
-            postprocessing_transforms (List[Callable], optional): Postprocessing transformations to apply.
-            device (str, optional): Device to perform computations on. Defaults to "cpu".
+                Args:
+                    params (dict): Dictionary of parameters.
+                    logger (Logger): Logger for logging the values.
+        <<<<<<< HEAD
+                    model_dir (str) : Model and results output directory.
+        =======
+                    model_dir (str) : Main run directory.
+        >>>>>>> 66b16df (Implementing saving checkpoints and new classparam)
+                    metric_calculator (object,optional): Metric calculator object.
+                    postprocessing_transforms (List[Callable], optional): Postprocessing transformations to apply.
+                    device (str, optional): Device to perform computations on. Defaults to "cpu".
         """
 
         super().__init__()
