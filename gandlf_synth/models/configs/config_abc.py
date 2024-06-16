@@ -12,6 +12,7 @@ class AbstractModelConfig(ABC):
         super().__init__()
         self._validatie_params(model_config)
         config = self._set_default_params(model_config)
+        config = self._set_default_architecture_params(config)
         self._create_properites_from_config(config)
 
     @staticmethod
@@ -29,6 +30,14 @@ class AbstractModelConfig(ABC):
     def _set_default_params(self, model_config: dict) -> dict:
         """
         This method sets the default parameters for the model configuration
+        if the user has not provided any.
+        """
+        pass
+
+    @abstractmethod
+    def _set_default_architecture_params(self, model_config: dict) -> dict:
+        """
+        This method sets the default architecture parameters for the model configuration
         if the user has not provided any.
         """
         pass
