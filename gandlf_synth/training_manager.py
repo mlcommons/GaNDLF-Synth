@@ -1,7 +1,6 @@
 import os
 import shutil
 from warnings import warn
-from logging import Logger, basicConfig
 
 import pandas as pd
 from torchio.transforms import Compose
@@ -16,8 +15,6 @@ from gandlf_synth.data.postprocessing import get_postprocessing_transforms
 from GANDLF.data.augmentation import get_augmentation_transforms
 
 from typing import List, Optional, Type, Callable
-
-# TODO this config is temporary/scratch
 
 
 class TrainingManager:
