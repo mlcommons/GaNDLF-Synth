@@ -20,4 +20,5 @@ BASIC_PARAMETER_DEFAULTS = {
     "data_augmentation": {},  # default data augmentation
     "previous_parameters": None,  # previous parameters to be used for resuming training and perform sanity checking
     "dataloader_config": DATALOADER_CONFIG_DEFAULTS,  # dataloader configuration
+    "save_model_every_n_epochs": -1,  # save model every n epochs
 }
