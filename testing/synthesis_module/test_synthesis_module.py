@@ -3,6 +3,7 @@ import logging
 import yaml
 import shutil
 
+from datetime import datetime
 from pathlib import Path
 from copy import deepcopy
 
@@ -72,7 +73,10 @@ class ContextManagerTests:
             if os.path.exists(OUTPUT_DIR):
                 shutil.copytree(
                     OUTPUT_DIR,
-                    os.path.join(TEST_DIR, f"output_failed_{self.test_name}"),
+                    os.path.join(
+                        TEST_DIR,
+                        f"output_failed_{self.test_name}_date_{datetime.now()}",
+                    ),
                 )
         # Later we may move output dir sanitization here too, and other stuff
         restore_config()
