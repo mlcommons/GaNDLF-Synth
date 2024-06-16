@@ -56,6 +56,7 @@ all_extra_files_pathcorrected = [os.path.join("../", item) for item in all_extra
 requirements = ["GANDLF@git+https://github.com/mlcommons/GandLF.git@master"]
 if __name__ == "__main__":
     setup(
+<<<<<<< HEAD
         name="gandlf_synth",
         version=__version__,
         author="MLCommons",
@@ -89,4 +90,7 @@ if __name__ == "__main__":
         package_data={"gandlf-synth": all_extra_files_pathcorrected},
         keywords="synthesis, image-generation, generative-AI, data-augmentation, medical-imaging, clinical-workflows, deep-learning, pytorch",
         zip_safe=False,
+=======
+        name="gandlf_synth", version="0.1", packages=find_packages(exclude=["testing"])
+>>>>>>> c4e26f5 (Exclude tests from install)
     )
