@@ -1,6 +1,8 @@
 import os
 import logging
 import yaml
+import shutil
+
 from pathlib import Path
 from copy import deepcopy
 
@@ -15,12 +17,18 @@ from gandlf_synth.training_manager import TrainingManager
 from typing import List
 
 TEST_DIR = Path(__file__).parent.absolute().__str__()
-
+OUTPUT_DIR = os.path.join(TEST_DIR, "output")
 TEST_CONFIG_PATH = os.path.join(TEST_DIR, "syntheis_module_config.yaml")
 with open(TEST_CONFIG_PATH, "r") as config_file:
     ORIGINAL_CONFIG = yaml.safe_load(config_file)
 CSV_PATH = os.path.join(os.path.dirname(TEST_DIR), "unlabeled_data.csv")
 DEVICE = "cpu"
+BASIC_LOGGER_CONFIG = logging.basicConfig(
+    filename=f"{OUTPUT_DIR}/synthesis_module_tests.log",
+    filemode="w",
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    level="INFO",
+)
 LOGGER_OBJECT = logging.Logger("synthesis_module_logger", level=logging.DEBUG)
 
 # Take all available modules registered
@@ -44,6 +52,12 @@ class ContextManagerTests:
     Context manager ensuring that certain operations are performed before and after the tests.
     """
 
+    def __init__(self, test_name: str):
+        """
+        Initialize the context manager.
+        """
+        self.test_name = test_name
+
     def __enter__(self):
         """
         Method to be executed before the tests.
@@ -54,8 +68,20 @@ class ContextManagerTests:
         """
         Method to be executed after the tests.
         """
+        if exc_type is not None and exc_type is not KeyboardInterrupt:
+            if os.path.exists(OUTPUT_DIR):
+                shutil.copytree(
+                    OUTPUT_DIR,
+                    os.path.join(TEST_DIR, f"output_failed_{self.test_name}"),
+                )
         # Later we may move output dir sanitization here too, and other stuff
         restore_config()
+        with os.scandir(OUTPUT_DIR) as entries:
+            for entry in entries:
+                if entry.is_dir() and not entry.is_symlink():
+                    shutil.rmtree(entry.path)
+                else:
+                    os.remove(entry.path)
 
 
 def parse_available_module(module_name: str) -> List[str]:
@@ -130,18 +156,65 @@ def test_module_config_pairs():
 
 
 def test_training_manager():
-    config_manager = ConfigManager(TEST_CONFIG_PATH)
-    global_config, model_config = config_manager.prepare_configs()
-    output_dir = os.path.join(TEST_DIR, "output")
-    example_dataframe = pd.read_csv(CSV_PATH)
-    # test the run when there is no validation and testing data
-    training_manager = TrainingManager(
-        train_dataframe=example_dataframe,
-        output_dir=output_dir,
-        global_config=global_config,
-        model_config=model_config,
-        resume=False,
-        reset=False,
-        device=DEVICE,
-    )
-    training_manager.run_training()
+    with ContextManagerTests("training_manager_test"):
+        config_manager = ConfigManager(TEST_CONFIG_PATH)
+        global_config, model_config = config_manager.prepare_configs()
+        example_dataframe = pd.read_csv(CSV_PATH)
+        # test the run when there is no validation and testing data
+        training_manager = TrainingManager(
+            train_dataframe=example_dataframe,
+            output_dir=OUTPUT_DIR,
+            global_config=global_config,
+            model_config=model_config,
+            resume=False,
+            reset=False,
+            device=DEVICE,
+        )
+        training_manager.run_training()
+
+        # Test with val and test data provided
+        global_config, model_config = config_manager.prepare_configs()
+        training_manager = TrainingManager(
+            train_dataframe=example_dataframe,
+            output_dir=OUTPUT_DIR,
+            global_config=global_config,
+            model_config=model_config,
+            resume=False,
+            reset=False,
+            device=DEVICE,
+            val_dataframe=example_dataframe,
+            test_dataframe=example_dataframe,
+        )
+        training_manager.run_training()
+
+        # Test using val and test percentages
+        global_config, model_config = config_manager.prepare_configs()
+        training_manager = TrainingManager(
+            train_dataframe=example_dataframe,
+            output_dir=OUTPUT_DIR,
+            global_config=global_config,
+            model_config=model_config,
+            resume=False,
+            reset=False,
+            device=DEVICE,
+            val_ratio=0.1,
+            test_ratio=0.1,
+        )
+        training_manager.run_training()
+
+        # Test fallback to dataframes when both provided
+        global_config, model_config = config_manager.prepare_configs()
+        training_manager = TrainingManager(
+            train_dataframe=example_dataframe,
+            output_dir=OUTPUT_DIR,
+            global_config=global_config,
+            model_config=model_config,
+            resume=False,
+            reset=False,
+            device=DEVICE,
+            val_ratio=0.1,
+            test_ratio=0.1,
+            val_dataframe=example_dataframe,
+            test_dataframe=example_dataframe,
+        )
+        training_manager.run_training()
