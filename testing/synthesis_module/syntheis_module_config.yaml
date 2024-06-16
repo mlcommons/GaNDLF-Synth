@@ -1,7 +1,7 @@
 version:
   {
-    minimum: 0.0.14,
-    maximum: 0.0.20-dev
+    minimum: 0.0.1,
+    maximum: 0.0.1-dev
   }
 # model config will be parsed into object representing config for a given model
 # as the configs will probably be very heterogeneous, we will not enforce any schema
