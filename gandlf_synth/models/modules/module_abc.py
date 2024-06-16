@@ -1,4 +1,6 @@
 import os
+import tarfile
+import tempfile
 from logging import Logger
 from abc import ABC, abstractmethod
 
@@ -8,6 +10,7 @@ from torch import optim
 
 from gandlf_synth.models.configs.config_abc import AbstractModelConfig
 from gandlf_synth.models.architectures.base_model import ModelBase
+
 
 from typing import Dict, Union, Optional, Type, List, Callable
 
@@ -22,6 +25,7 @@ class SynthesisModule(ABC):
         self,
         model_config: Type[AbstractModelConfig],
         logger: Logger,
+        model_dir: str,
         metric_calculator: Optional[dict] = None,
         postprocessing_transforms: Optional[List[Callable]] = None,
         device: str = "cpu",
@@ -31,6 +35,7 @@ class SynthesisModule(ABC):
         Args:
             params (dict): Dictionary of parameters.
             logger (Logger): Logger for logging the values.
+            model_dir (str) : Main run directory.
             metric_calculator (object,optional): Metric calculator object.
             postprocessing_transforms (List[Callable], optional): Postprocessing transformations to apply.
             device (str, optional): Device to perform computations on. Defaults to "cpu".
@@ -40,6 +45,7 @@ class SynthesisModule(ABC):
         # This is my idea for now, we can change it later.
         self.model_config = model_config
         self.logger = logger
+        self.model_dir = model_dir
         self.metric_calculator = metric_calculator
         self.postprocessing_transforms = postprocessing_transforms
         self.device = torch.device(device)
@@ -176,24 +182,33 @@ class SynthesisModule(ABC):
         """
         pass
 
-    def save_checkpoint(self, model_dir: str, suffix: Optional[str] = None) -> None:
+    # TODO this could be done on tempfile?
+    def save_checkpoint(self, suffix: str) -> None:
         """
-        Save the model checkpoint into specified run directory. If specieifd, add suffix
-        to the filename to save specific version.
+        Save the model checkpoint into specified run directory. Pytorch-serialized object
+        is saved and compressed into tar.gz archive.
 
         Args:
-            model_dir (str) : Directory with run files stored.
-            suffix (Optional[str]) : Optional suffix to be added to the filename,
-        used mostly for versioning.
+            suffix (str) : Suffix to be added to the basic archive name,
+        used mostly for versioning. This suffix SHOULD NOT contain file
+        extensions.
 
         """
-        basic_model_path = os.path.join(model_dir)
-        if suffix is not None:
-            basic_model_path = os.path.join(basic_model_path, suffix)
-        state_dict = self.model.state_dict().to("cpu")
-        torch.save(state_dict, basic_model_path)
+        torch_object_filepath = os.path.join(self.model_dir, "model_" + suffix + ".pt")
+        state_dict = self.model.state_dict()
+        torch.save(state_dict, torch_object_filepath)
+        tarfile_object_filename = (
+            os.path.basename(torch_object_filepath).split(".")[0] + ".tar.gz"
+        )
+        tarfile_object_path = os.path.join(self.model_dir, tarfile_object_filename)
+        with tarfile.open(tarfile_object_path, "w:gz") as archive:
+            archive.add(
+                torch_object_filepath, arcname=os.path.basename(torch_object_filepath)
+            )
+        os.remove(torch_object_filepath)
 
-    def load_checkpoint(self, model_dir: str, suffix: Optional[str] = None) -> None:
+    # TODO think on loading it, how to handle filename
+    def load_checkpoint(self, suffix: Optional[str] = None) -> None:
         """
         Load the model checkpoint from specified run directory. If specieifd, add suffix
         to the filename to load specific ones.
@@ -204,11 +219,10 @@ class SynthesisModule(ABC):
         used mostly for versioning.
 
         """
-        basic_model_path = os.path.join(model_dir)
-        if suffix is not None:
-            basic_model_path = os.path.join(basic_model_path, suffix)
-
-        state_dict = torch.load(basic_model_path, map_location="cpu").to(self.device)
+        tar_file_path = os.path.join(self.model_dir, "model_" + suffix + ".tar.gz")
+        torch_object_path = os.path.basename(tar_file_path).split(".")[0] + ".pt"
+        with tarfile.open(tar_file_path, "r:gz") as archive:
+            state_dict = torch.load(archive.extractfile(torch_object_path))
         self.model.load_state_dict(state_dict=state_dict)
 
     def _apply_postprocessing(self, data_to_transform: torch.Tensor) -> torch.Tensor:

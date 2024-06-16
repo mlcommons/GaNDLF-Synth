@@ -121,7 +121,7 @@ class UnlabeledDCGANModule(SynthesisModule):
             dtype=torch.float,
             device=self.device,
         )
-        fake_labels = real_labels.copy_().fill_(0.0)
+        fake_labels = real_labels.clone().fill_(0.0)
         batch_size = real_images.shape[0]
         latent_vector = generate_latent_vector(
             batch_size,
@@ -158,7 +158,7 @@ class UnlabeledDCGANModule(SynthesisModule):
             dtype=torch.float,
             device=self.device,
         )
-        fake_labels = real_labels.copy_().fill_(0.0)
+        fake_labels = real_labels.clone().fill_(0.0)
         batch_size = real_images.shape[0]
         latent_vector = generate_latent_vector(
             batch_size,

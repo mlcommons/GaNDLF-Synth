@@ -18,6 +18,7 @@ class ModuleFactory:
         self,
         model_config: Type[AbstractModelConfig],
         logger: Logger,
+        model_dir: str,
         metric_calculator: Optional[Dict[str, object]] = None,
         postprocessing_transforms: Optional[List[Callable]] = None,
         device: str = "cpu",
@@ -28,6 +29,7 @@ class ModuleFactory:
         Args:
             model_config (Type[AbstractModelConfig]): The model configuration object.
             logger (Logger): The logger object.
+            model_dir (str): Main run directory.
             metric_calculator (dict, optional): The metric calculator dictionary. Defaults to None.
             postprocessing_transforms (List[Callable], optional): The postprocessing transformations to apply. Defaults to None.
             device (str, optional): The device to perform computations on. Defaults to "cpu".
@@ -35,6 +37,7 @@ class ModuleFactory:
 
         self.model_config = model_config
         self.logger = logger
+        self.model_dir = model_dir
         self.metric_calculator = metric_calculator
         self.postprocessing_transforms = postprocessing_transforms
         self.device = torch_device(device)
@@ -66,6 +69,7 @@ class ModuleFactory:
         return self.AVAILABE_MODULES[module_name](
             model_config=self.model_config,
             logger=self.logger,
+            model_dir=self.model_dir,
             metric_calculator=self.metric_calculator,
             postprocessing_transforms=self.postprocessing_transforms,
             device=self.device,
