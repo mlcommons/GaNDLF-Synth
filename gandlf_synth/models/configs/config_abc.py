@@ -42,8 +42,7 @@ class AbstractModelConfig(ABC):
         """
         pass
 
-    @classmethod
-    def _create_properites_from_config(cls, model_config: dict) -> None:
+    def _create_properites_from_config(self, model_config: dict) -> None:
         """
         This method creates the properties from the model configuration
         dictionary.
@@ -51,7 +50,7 @@ class AbstractModelConfig(ABC):
             model_config (dict): The model configuration dictionary.
         """
         for key, value in model_config.items():
-            setattr(cls, key, value)
+            setattr(self, key, value)
 
 
 # Just an example of configuration class
