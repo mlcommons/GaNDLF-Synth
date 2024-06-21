@@ -76,6 +76,7 @@ class TrainingManager:
         self.logger = self._prepare_logger()
         self._prepare_output_dir()
         self._load_or_save_parameters()
+
         self._assert_parameter_correctness()
         self._warn_user()
 
@@ -94,6 +95,8 @@ class TrainingManager:
             postprocessing_transforms=self._prepare_postprocessing_transforms(),
         )
         self.module = module_factory.get_module()
+        if self.resume:
+            self._load_model_checkpoint()
 
     def _warn_user(self):
         """
@@ -237,6 +240,30 @@ class TrainingManager:
         if not os.path.exists(self.output_dir):
             os.makedirs(self.output_dir)
 
+    # TODO: should we allow the user to maybe even specify the checkpoint to load?
+    def _load_model_checkpoint(self):
+        """
+        Resume the training process from a previous checkpoint if `resume` mode is used. This function
+        establishes which model checkpoint to load and loads it.
+        """
+
+        initial_model_path = os.path.exists(
+            os.path.join(self.output_dir, "model_initial.tar.gz")
+        )
+        latest_model_path_exists = os.path.exists(
+            os.path.join(self.output_dir, "model_latest.tar.gz")
+        )
+        if latest_model_path_exists:
+            self.logger.info("Resuming training from the latest checkpoint.")
+            self.module.load_checkpoint(suffix="latest")
+        elif initial_model_path:
+            self.logger.info("Resuming training from the initial checkpoint.")
+            self.module.load_checkpoint(suffix="initial")
+        else:
+            self.logger.info(
+                "No model checkpoint found in the model directory, training from scratch."
+            )
+
     def _load_or_save_parameters(self):
         """
         Load or save the parameters for the training process.
@@ -250,6 +277,7 @@ class TrainingManager:
                 loaded_parameters = pickle.load(pickle_file)
             self.global_config = loaded_parameters["global_config"]
             self.model_config = loaded_parameters["model_config"]
+
         else:
             self.logger.info("Saving parameters for the current run.")
             with open(parameters_pickle_path, "wb") as pickle_file:
@@ -420,8 +448,8 @@ class TrainingManager:
             if self.global_config["save_model_every_n_epochs"] != -1 and (
                 epoch % self.global_config["save_model_every_n_epochs"] == 0
             ):
-                self.module.save_checkpoint(suffix=f"_epoch_{epoch}")
-            self.module.save_checkpoint(suffix="_latest")
+                self.module.save_checkpoint(suffix=f"epoch_{epoch}")
+            self.module.save_checkpoint(suffix="latest")
         if self.test_dataloader is not None:
             for batch_idx, batch in enumerate(self.test_dataloader):
                 self._assert_input_correctness(batch_idx, batch)
