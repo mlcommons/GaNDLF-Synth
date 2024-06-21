@@ -22,18 +22,19 @@ from typing import List
 
 TEST_DIR = Path(__file__).parent.absolute().__str__()
 OUTPUT_DIR = os.path.join(TEST_DIR, "output")
+LOG_DIR = os.path.join(TEST_DIR, "logs")
 TEST_CONFIG_PATH = os.path.join(TEST_DIR, "syntheis_module_config.yaml")
 with open(TEST_CONFIG_PATH, "r") as config_file:
     ORIGINAL_CONFIG = yaml.safe_load(config_file)
 CSV_PATH = os.path.join(os.path.dirname(TEST_DIR), "unlabeled_data.csv")
 DEVICE = "cpu"
 BASIC_LOGGER_CONFIG = logging.basicConfig(
-    filename=f"{OUTPUT_DIR}/synthesis_module_tests.log",
+    filename=f"{LOG_DIR}/synthesis_module_tests.log",
     filemode="w",
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     level="INFO",
 )
-LOGGER_OBJECT = logging.Logger("synthesis_module_logger", level=logging.DEBUG)
+LOGGER_OBJECT = logging.getLogger("synthesis_module_logger", level=logging.DEBUG)
 
 # Take all available modules registered
 AVAILABLE_MODULES = list(ModuleFactory.AVAILABE_MODULES.keys())

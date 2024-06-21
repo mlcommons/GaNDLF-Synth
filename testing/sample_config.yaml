@@ -53,7 +53,12 @@ model_config:
       generator: {
         name: "BCELogits",
       }
-    }
+    },
+    # as every model will have different inference parameters, 
+    # we can provide a dictionary for them - by default, inference_step()
+    # method in module is called with kwarg params, the rest can be validated
+    # in the module itself
+    inference_parameters : {}
     
   }
 # Available metrics: ssim, fid, lpips along their config. Also possible not to use any metric
@@ -135,6 +140,8 @@ data_postprocessing:
 # Configs for specific dataloaders. As we depart from the torchio subject dataloader
 # we can enable the user to configure the dataloaders as they see fit. If some dataloader
 # is not used in given run it's config will be ignored
+
+
 dataloader_config:
   {
     train: {

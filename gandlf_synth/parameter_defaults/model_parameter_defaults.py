@@ -15,6 +15,7 @@ MODEL_PARAMETER_DEFAULTS = {
     "clip_mode": "norm",  # gradient clipping mode
     "patience": 0,  # number of epochs to wait for performance improvement
     "labeling_paradigm": "unlabeled",  # labeling paradigm
+    "inference_parameters": {},  # inference parameters
     "schedulers": {},
     "architecture": {},
 }
