@@ -237,6 +237,31 @@ class TrainingManager:
         if not os.path.exists(self.output_dir):
             os.makedirs(self.output_dir)
 
+    def _load_or_save_parameters(self):
+        """
+        Load or save the parameters for the training process.
+        """
+        parameters_pickle_path = os.path.join(self.output_dir, "parameters.pkl")
+        pickle_file_exists = os.path.exists(parameters_pickle_path)
+
+        if self.resume and pickle_file_exists:
+            self.logger.info("Resuming training from previous run, loading parameters.")
+            with open(parameters_pickle_path, "rb") as pickle_file:
+                loaded_parameters = pickle.load(pickle_file)
+            self.global_config = loaded_parameters["global_config"]
+            self.model_config = loaded_parameters["model_config"]
+        else:
+            self.logger.info("Saving parameters for the current run.")
+            with open(parameters_pickle_path, "wb") as pickle_file:
+                pickle.dump(
+                    {
+                        "global_config": self.global_config,
+                        "model_config": self.model_config,
+                    },
+                    pickle_file,
+                    protocol=pickle.HIGHEST_PROTOCOL,
+                )
+
     def _prepare_postprocessing_transforms(self) -> List[Callable]:
         """
         Prepare the postprocessing transforms
@@ -396,7 +421,7 @@ class TrainingManager:
                 epoch % self.global_config["save_model_every_n_epochs"] == 0
             ):
                 self.module.save_checkpoint(suffix=f"_epoch_{epoch}")
-        self.module.save_checkpoint(suffix="_last")
+            self.module.save_checkpoint(suffix="_latest")
         if self.test_dataloader is not None:
             for batch_idx, batch in enumerate(self.test_dataloader):
                 self._assert_input_correctness(batch_idx, batch)
