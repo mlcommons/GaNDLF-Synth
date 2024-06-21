@@ -331,11 +331,7 @@ class DCGAN(ModelBase):
             warn("No normalization specified. Defaulting to BatchNorm", RuntimeWarning)
             self.Norm = self.BatchNorm
         self.generator = _GeneratorDCGAN(
-<<<<<<< HEAD
-            output_size=model_config.architecture["generator_output_size"],
-=======
             output_size=model_config.input_shape,
->>>>>>> efa7a38 (Fixing assertion errors regardin input)
             latent_vector_dim=model_config.architecture["latent_vector_size"],
             growth_rate=model_config.architecture["growth_rate_generator"],
             gen_init_channels=model_config.architecture["init_channels_generator"],
@@ -348,11 +344,7 @@ class DCGAN(ModelBase):
             num_input_channels=self.n_channels,
             norm=self.Norm,
             conv=self.Conv,
-<<<<<<< HEAD
-            input_size=model_config.architecture["discriminator_input_size"],
-=======
             input_size=model_config.input_shape,
->>>>>>> efa7a38 (Fixing assertion errors regardin input)
             growth_rate=model_config.architecture["growth_rate_discriminator"],
             disc_init_channels=model_config.architecture["init_channels_discriminator"],
             slope=model_config.architecture["leaky_relu_slope"],
