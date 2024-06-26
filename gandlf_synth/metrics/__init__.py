@@ -1,5 +1,5 @@
 from warnings import warn
-from gandlf_synth.metrics.synthesis import (
+from GANDLF.metrics.synthesis import (
     structural_similarity_index,
     mean_squared_error,
     peak_signal_noise_ratio,
@@ -9,16 +9,10 @@ from gandlf_synth.metrics.synthesis import (
     ncc_std,
     ncc_max,
     ncc_min,
-    fid,
-    lpips,
-    ssim_gans,
 )
 
 # added all synth metrics from original gandlf, not sure if they will all work tho
 global_metrics_dict = {
-    "ssim_gan": ssim_gans,
-    "fid": fid,
-    "lpips": lpips,
     "ncc_mean": ncc_mean,
     "ncc_std": ncc_std,
     "ncc_max": ncc_max,
