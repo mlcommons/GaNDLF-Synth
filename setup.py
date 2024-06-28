@@ -87,6 +87,6 @@ if __name__ == "__main__":
         long_description_content_type="text/markdown",
         include_package_data=True,
         package_data={"gandlf-synth": all_extra_files_pathcorrected},
-        keywords="image generation, image synthesis, data-augmentation, medical-imaging, clinical-workflows, deep-learning, pytorch",
+        keywords="synthesis, image-generation, generative-AI, data-augmentation, medical-imaging, clinical-workflows, deep-learning, pytorch",
         zip_safe=False,
     )
