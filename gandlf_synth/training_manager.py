@@ -344,7 +344,7 @@ class TrainingManager:
             if self.val_dataloader is not None:
                 for batch_idx, batch in enumerate(self.val_dataloader):
                     self._assert_input_correctness(batch_idx, batch)
-                    self.module.validation_step(batch, batch_idx)
+                    self.module._on_validation_epoch_start(batch, batch_idx)
                     self.module.validation_step(batch, batch_idx)
                     self.module._on_validation_epoch_end(epoch)
         if self.test_dataloader is not None:
