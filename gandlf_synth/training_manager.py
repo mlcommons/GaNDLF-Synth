@@ -3,6 +3,7 @@ import shutil
 from warnings import warn
 from logging import Logger
 
+import torch
 import pandas as pd
 from torchio.transforms import Compose
 
@@ -150,6 +151,17 @@ class TrainingManager:
         assert (
             self.val_ratio + self.test_ratio <= 1
         ), "Validation and test ratios must sum up to less than or equal to 1"
+        assert self.device in ["cpu", "cuda"], "Device must be either 'cpu' or 'cuda'"
+        if self.device == "cuda":
+            assert (
+                torch.cuda.is_available()
+            ), "CUDA is not available. Please use 'cpu' or install CUDA."
+        if self.reset and self.resume:
+            warn(
+                "Both reset and resume are set to True. Resume will take precedence.",
+                UserWarning,
+            )
+            self.reset = False
 
     def _assert_input_correctness(self, batch_idx, batch):
         """
