@@ -284,12 +284,10 @@ class SynthesisModule(ABC):
         """
         pass
 
-    def _on_test_start(self, epoch: int) -> None:
+    def _on_test_start(self) -> None:
         """
         Function to be called at the start of the test.
 
-        Args:
-            epoch (int): Current epoch.
         """
         pass
 
@@ -311,11 +309,8 @@ class SynthesisModule(ABC):
         """
         pass
 
-    def _on_test_end(self, epoch: int) -> None:
+    def _on_test_end(self) -> None:
         """
         Function to be called at the end of the test.
-
-        Args:
-            epoch (int): Current epoch.
         """
         pass
