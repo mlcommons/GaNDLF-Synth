@@ -22,6 +22,14 @@ class UnlabeledDCGANConfig(AbstractModelConfig):
 
     @staticmethod
     def _validatie_params(model_config: dict) -> None:
+        assert (
+            len(model_config["input_shape"]) == model_config["n_dimensions"]
+        ), " `input_shape` parameter in model config needs to have number of elements equalt to `n_dimensions`."
+
+        for dim in model_config["input_shape"]:
+            assert dim > 0 and isinstance(
+                dim, int
+            ), "All elements of `input_shape` must be positive integers."
         if "leaky_relu_slope" in model_config["architecture"]:
             assert (
                 model_config["architecture"]["leaky_relu_slope"] > 0
