@@ -305,6 +305,7 @@ class TrainingManager:
         """
         Train the model.
         """
+        # CAUTION - keep careful when dealing with multiple batches and split images (slices)
         for epoch in range(self.global_config["num_epochs"]):
             for batch_idx, batch in enumerate(self.train_dataloader):
                 train_step_loss = self.module.training_step(batch, batch_idx)
