@@ -157,6 +157,26 @@ class TrainingManager:
             self.val_ratio + self.test_ratio <= 1
         ), "Validation and test ratios must sum up to less than or equal to 1"
 
+    def _assert_input_correctness(self, batch_idx, batch):
+        """
+        Assert the correctness of the input shape in a given data batch.
+
+        Args:
+            batch_idx (int): The index of the batch.
+            batch (object): The data batch.
+        """
+        configured_input_shape = self.model_config["input_shape"]
+        configured_n_channels = self.model_config["n_channels"]
+        expected_input_shape = [configured_n_channels] + configured_input_shape
+        # maybe in  the upcoming PRs we should consider some dict-like
+        # structure returned by the dataloader? So we can access the data
+        # by keywords, like batch["image"] or batch["label"] instead of
+        # indices
+        batch_image_shape = list(batch[0][0].shape)
+        assert (
+            batch_image_shape == expected_input_shape
+        ), f"Batch {batch_idx} has incorrect shape. Expected: {expected_input_shape}, got: {batch_image_shape}"
+
     def _prepare_metric_calculator(self) -> dict:
         """
         Prepare the metric calculator for the training process.
@@ -308,10 +328,13 @@ class TrainingManager:
         # CAUTION - keep careful when dealing with multiple batches and split images (slices)
         for epoch in range(self.global_config["num_epochs"]):
             for batch_idx, batch in enumerate(self.train_dataloader):
+                self._assert_input_correctness(batch_idx, batch)
                 train_step_loss = self.module.training_step(batch, batch_idx)
             if self.val_dataloader is not None:
                 for batch_idx, batch in enumerate(self.val_dataloader):
+                    self._assert_input_correctness(batch_idx, batch)
                     val_step_loss = self.module.validation_step(batch, batch_idx)
         if self.test_dataloader is not None:
             for batch_idx, batch in enumerate(self.test_dataloader):
+                self._assert_input_correctness(batch_idx, batch)
                 test_step_loss = self.module.test_step(batch, batch_idx)
