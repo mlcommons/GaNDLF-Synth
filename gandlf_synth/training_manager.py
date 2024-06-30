@@ -12,8 +12,7 @@ from gandlf_synth.data.datasets_factory import DatasetFactory
 from gandlf_synth.data.dataloaders_factory import DataloaderFactory
 from gandlf_synth.metrics import get_metrics
 from gandlf_synth.data.preprocessing import get_preprocessing_transforms
-from gandlf_synth.data.augmentations import get_augmentation_transforms
-
+from GANDLF.data.augmentation import get_augmentation_transforms
 
 from typing import List, Optional, Type, Union
 
@@ -165,7 +164,7 @@ class TrainingManager:
             batch_idx (int): The index of the batch.
             batch (object): The data batch.
         """
-        configured_input_shape = self.model_config["input_shape"]
+        configured_input_shape = self.model_config["tensor_shape"]
         configured_n_channels = self.model_config["n_channels"]
         expected_input_shape = [configured_n_channels] + configured_input_shape
         # maybe in  the upcoming PRs we should consider some dict-like
@@ -281,7 +280,7 @@ class TrainingManager:
             preprocessing_config,
             augmentations_config,
             "train",
-            self.model_config.architecture["input_shape"],
+            self.model_config.architecture["tensor_shape"],
         )
         train_dataset = dataset_factory.get_dataset(
             self.train_dataframe, train_transforms, self.model_config.labeling_paradigm
@@ -295,7 +294,7 @@ class TrainingManager:
                 preprocessing_config,
                 augmentations_config,
                 "val",
-                self.model_config.architecture["input_shape"],
+                self.model_config.architecture["tensor_shape"],
             )
             val_dataset = dataset_factory.get_dataset(
                 self.val_dataframe, val_transforms, self.model_config.labeling_paradigm
@@ -306,7 +305,7 @@ class TrainingManager:
                 preprocessing_config,
                 augmentations_config,
                 "test",
-                self.model_config.architecture["input_shape"],
+                self.model_config.architecture["tensor_shape"],
             )
             test_dataset = dataset_factory.get_dataset(
                 self.test_dataframe,

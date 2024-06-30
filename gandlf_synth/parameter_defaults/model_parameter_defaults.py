@@ -4,7 +4,7 @@ REQUIRED_MODEL_PARAMETERS = [
     "n_channels",
     "losses",
     "optimizers",
-    "input_shape",
+    "tensor_shape",
 ]
 
 MODEL_PARAMETER_DEFAULTS = {

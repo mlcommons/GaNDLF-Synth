@@ -43,4 +43,13 @@ class UnlabeledDCGANConfig(AbstractModelConfig):
                     f"Parameter {key} not found in the `architecture` field of `model_config`. Setting value to default: {value}.",
                     UserWarning,
                 )
+        # special case for the DCGAN model
+        model_config["output_shape"] = model_config.get(
+            "output_shape", model_config["tensor_shape"]
+        )
+        warn(
+            "Parameter `output_shape` not found in the `model_config`. Setting value to `tensor_shape`.",
+            UserWarning,
+        )
+
         return model_config
