@@ -47,7 +47,7 @@ def get_preprocessing_transforms(
         for preprocess in preprocessing_params_dict:
             preprocess_lower = preprocess.lower()
             # special check for resize and resample
-            if preprocess_lower == "resize_patch":
+            if preprocess_lower == "resize":
                 resize_values = generic_3d_check(preprocessing_params_dict[preprocess])
                 current_transformations.append(Resize(resize_values))
             elif preprocess_lower == "resample":
@@ -105,5 +105,4 @@ def get_preprocessing_transforms(
     # normalization type is applied at the end
     if normalize_to_apply is not None:
         current_transformations.append(normalize_to_apply)
-
     return current_transformations

@@ -93,9 +93,11 @@ class UnlabeledDCGANModule(SynthesisModule):
             )
         self._log("disc_loss", loss_disc)
         self._log("gen_loss", gen_loss)
-        # TODO: Implement metrics calculation
         if self.metric_calculator is not None:
-            print("Calculating metrics!")
+            metric_results = {}
+            for metric_name, metric in self.metric_calculator.items():
+                metric_results[metric_name] = metric(real_images, fake_images.detach())
+            self._log_dict(metric_results)
 
     # TODO
     def validation_step(self, batch: object, batch_idx: int) -> torch.Tensor:
