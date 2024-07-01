@@ -15,7 +15,7 @@ class DatasetFactory:
         self,
         dataframe: pd.DataFrame,
         transforms: Optional[Compose],
-        labeling_paradigm: str = "unlabeled",
+        labeling_paradigm: Optional[str] = "unlabeled",
     ) -> SynthesisDataset:
         """
         Factory function to create a dataset based on the labeling paradigm.
