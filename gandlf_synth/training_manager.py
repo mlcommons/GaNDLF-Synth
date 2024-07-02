@@ -12,9 +12,8 @@ from gandlf_synth.data.datasets_factory import DatasetFactory
 from gandlf_synth.data.dataloaders_factory import DataloaderFactory
 from gandlf_synth.metrics import get_metrics
 from gandlf_synth.data.preprocessing import get_preprocessing_transforms
-from GANDLF.data.augmentation import get_augmentation_transforms
-
 from gandlf_synth.data.postprocessing import get_postprocessing_transforms
+from GANDLF.data.augmentation import get_augmentation_transforms
 
 from typing import List, Optional, Type, Callable
 
@@ -166,14 +165,14 @@ class TrainingManager:
             batch_idx (int): The index of the batch.
             batch (object): The data batch.
         """
-        configured_input_shape = self.model_config["tensor_shape"]
-        configured_n_channels = self.model_config["n_channels"]
+        configured_input_shape = self.model_config.tensor_shape
+        configured_n_channels = self.model_config.n_channels
         expected_input_shape = [configured_n_channels] + configured_input_shape
         # maybe in  the upcoming PRs we should consider some dict-like
         # structure returned by the dataloader? So we can access the data
         # by keywords, like batch["image"] or batch["label"] instead of
         # indices
-        batch_image_shape = list(batch[0][0].shape)
+        batch_image_shape = list(batch[0].shape)
         assert (
             batch_image_shape == expected_input_shape
         ), f"Batch {batch_idx} has incorrect shape. Expected: {expected_input_shape}, got: {batch_image_shape}"
@@ -228,8 +227,13 @@ class TrainingManager:
             "test",
         ], "Mode must be one of 'train', 'val', or 'test'"
         transforms_list = []
-        preprocessing_operations = preprocessing_config.get(mode)
-        augmentation_operations = augmentations_config.get(mode)
+        preprocessing_operations = None
+        augmentation_operations = None
+
+        if preprocessing_config is not None:
+            preprocessing_operations = preprocessing_config.get(mode)
+        if augmentations_config is not None:
+            augmentation_operations = augmentations_config.get(mode)
         if preprocessing_operations is not None:
             train_mode = True if mode == "train" else False
             preprocessing_transforms = get_preprocessing_transforms(
@@ -286,7 +290,7 @@ class TrainingManager:
             preprocessing_config,
             augmentations_config,
             "train",
-            self.model_config.architecture["tensor_shape"],
+            self.model_config.tensor_shape,
         )
         train_dataset = dataset_factory.get_dataset(
             self.train_dataframe, train_transforms, self.model_config.labeling_paradigm
@@ -300,7 +304,7 @@ class TrainingManager:
                 preprocessing_config,
                 augmentations_config,
                 "val",
-                self.model_config.architecture["tensor_shape"],
+                self.model_config.tensor_shape,
             )
             val_dataset = dataset_factory.get_dataset(
                 self.val_dataframe, val_transforms, self.model_config.labeling_paradigm
@@ -311,7 +315,7 @@ class TrainingManager:
                 preprocessing_config,
                 augmentations_config,
                 "test",
-                self.model_config.architecture["tensor_shape"],
+                self.model_config.tensor_shape,
             )
             test_dataset = dataset_factory.get_dataset(
                 self.test_dataframe,

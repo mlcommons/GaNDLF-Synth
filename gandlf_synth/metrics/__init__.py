@@ -40,9 +40,9 @@ def get_metrics(metrics_params_dict: dict) -> dict[object]:
     current_metrics = {}
 
     # Converting the list of metrics to a dictionary format.
-    if isinstance(metrics_params, list):
+    if isinstance(metrics_params_dict, list):
         converted_metrics_params = {}
-        for metric_type in metrics_params:
+        for metric_type in metrics_params_dict:
             if isinstance(metric_type, dict):
                 # case in which user specified some metrics with parameters along with some metrics without parameters
                 converted_metrics_params[metric_type.keys()] = metric_type.values()
@@ -56,9 +56,7 @@ def get_metrics(metrics_params_dict: dict) -> dict[object]:
         metric_type_lower = metric_type.lower()
 
         if metric_type_lower in global_metrics_dict:
-            current_metrics[metric_type_lower] = global_metrics_dict[metric_type_lower](
-                **metric_params
-            )
+            current_metrics[metric_type_lower] = global_metrics_dict[metric_type_lower]
         else:
             warn(
                 f"Metric {metric_type} not found in the global metrics dictionary.",

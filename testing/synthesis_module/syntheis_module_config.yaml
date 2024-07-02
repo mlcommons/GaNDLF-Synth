@@ -42,13 +42,11 @@ metrics_config:
 modality: rad
 model_config:
   amp: false
+  tensor_shape:
+    - 128
+    - 128
   architecture:
-    discriminator_input_size:
-    - 128
-    - 128
-    generator_output_size:
-    - 128
-    - 128
+  
     latent_vector_size: 100
   converter_type: soft
   labeling_paradigm: unlabeled
