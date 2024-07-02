@@ -87,6 +87,10 @@ def test_module_config_pairs():
         ), f"Config {config} does not have a corresponding module"
 
 
+# TODO: This test is checking the pipeline created manually, wtihout encampsulating it in
+# a training manager. For now it is commented out, as the same logic happens in training manager
+# in the future we may remove it or replace it with some modification.
+
 # def test_initial_pipeline_module():
 #     with ContextManagerTests():
 #         for module in AVAILABLE_MODULES:
