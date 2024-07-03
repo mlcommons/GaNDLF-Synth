@@ -81,7 +81,7 @@ if __name__ == "__main__":
         description=(
             "PyTorch-based framework that handles image synthesis using various DL architectures for medical imaging."
         ),
-        # install_requires=requirements,
+        install_requires=requirements,
         license="Apache-2.0",
         long_description=readme,
         long_description_content_type="text/markdown",
