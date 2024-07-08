@@ -185,8 +185,8 @@ class SynthesisModule(ABC):
     # TODO this could be done on tempfile?
     def save_checkpoint(self, suffix: str) -> None:
         """
-        Save the model checkpoint into specified run directory. Pytorch-serialized object
-        is saved and compressed into tar.gz archive.
+        Save the model checkpoint into specified run directory. PyTorch-serialized object
+        is saved and compressed into `tar.gz` archive.
 
         Args:
             suffix (str) : Suffix to be added to the basic archive name,
