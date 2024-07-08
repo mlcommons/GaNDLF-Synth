@@ -29,7 +29,7 @@ class ModuleFactory:
         Args:
             model_config (Type[AbstractModelConfig]): The model configuration object.
             logger (Logger): The logger object.
-            model_dir (str): Main run directory.
+            model_dir (str): Model and results output directory.
             metric_calculator (dict, optional): The metric calculator dictionary. Defaults to None.
             postprocessing_transforms (List[Callable], optional): The postprocessing transformations to apply. Defaults to None.
             device (str, optional): The device to perform computations on. Defaults to "cpu".
