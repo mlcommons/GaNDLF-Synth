@@ -1,5 +1,6 @@
 import os
 import shutil
+import pickle
 from warnings import warn
 from logging import Logger
 
@@ -192,6 +193,32 @@ class TrainingManager:
             dict: The dictionary of metrics to be calculated.
         """
         return get_metrics(self.global_config["metrics"])
+
+    def _load_or_save_parameters(self):
+        """
+        Load or save the parameters for the training process.
+        """
+        parameters_pickle_path = os.path.join(self.output_dir, "parameters.pkl")
+        pickle_file_exists = os.path.exists(parameters_pickle_path)
+
+        if self.resume and pickle_file_exists:
+            self.logger.info("Resuming training from previous run, loading parameters.")
+            with open(parameters_pickle_path, "rb") as pickle_file:
+                loaded_parameters = pickle.load(pickle_file)
+            self.global_config = loaded_parameters["global_config"]
+            self.model_config = loaded_parameters["model_config"]
+
+        else:
+            self.logger.info("Saving parameters for the current run.")
+            with open(parameters_pickle_path, "wb") as pickle_file:
+                pickle.dump(
+                    {
+                        "global_config": self.global_config,
+                        "model_config": self.model_config,
+                    },
+                    pickle_file,
+                    protocol=pickle.HIGHEST_PROTOCOL,
+                )
 
     def _prepare_logger(self) -> Logger:
         """
