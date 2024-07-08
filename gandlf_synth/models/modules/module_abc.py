@@ -35,7 +35,7 @@ class SynthesisModule(ABC):
         Args:
             params (dict): Dictionary of parameters.
             logger (Logger): Logger for logging the values.
-            model_dir (str) : Main run directory.
+            model_dir (str) : Model and results output directory.
             metric_calculator (object,optional): Metric calculator object.
             postprocessing_transforms (List[Callable], optional): Postprocessing transformations to apply.
             device (str, optional): Device to perform computations on. Defaults to "cpu".
