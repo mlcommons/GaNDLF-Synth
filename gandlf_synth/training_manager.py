@@ -76,7 +76,6 @@ class TrainingManager:
         self.logger = self._prepare_logger()
         self._prepare_output_dir()
         self._load_or_save_parameters()
-
         self._assert_parameter_correctness()
         self._warn_user()
 

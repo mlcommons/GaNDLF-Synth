@@ -15,7 +15,6 @@ from gandlf_synth.version import __version__
 from gandlf_synth.models.configs.config_abc import AbstractModelConfig
 from gandlf_synth.models.architectures.base_model import ModelBase
 
-
 from typing import Dict, Union, Optional, Type, List, Callable
 
 
