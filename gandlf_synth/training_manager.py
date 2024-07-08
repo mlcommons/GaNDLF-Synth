@@ -71,12 +71,13 @@ class TrainingManager:
         self.resume = resume
         self.reset = reset
         self.device = device
+
+        self.logger = self._prepare_logger()
+        self._prepare_output_dir()
+        self._load_or_save_parameters()
         self._assert_parameter_correctness()
         self._warn_user()
 
-        self.metric_calculator_dict = self._prepare_metric_calculator()
-        self.logger = self._prepare_logger()
-        self._prepare_output_dir()
         (
             self.train_dataloader,
             self.val_dataloader,
@@ -87,7 +88,7 @@ class TrainingManager:
             model_config=self.model_config,
             logger=self.logger,
             model_dir=self.output_dir,
-            metric_calculator=self.metric_calculator_dict,
+            metric_calculator=self._prepare_metric_calculator(),
             device=self.device,
             postprocessing_transforms=self._prepare_postprocessing_transforms(),
         )

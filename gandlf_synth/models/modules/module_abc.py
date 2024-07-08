@@ -1,6 +1,7 @@
 import os
 import io
 import tarfile
+import hashlib
 from logging import Logger
 from abc import ABC, abstractmethod
 
@@ -8,9 +9,11 @@ import torch
 from torch import nn
 from torch import optim
 
+from GANDLF.utils.generic import get_git_hash, get_unique_timestamp
+
+from gandlf_synth.version import __version__
 from gandlf_synth.models.configs.config_abc import AbstractModelConfig
 from gandlf_synth.models.architectures.base_model import ModelBase
-
 
 from typing import Dict, Union, Optional, Type, List, Callable
 
@@ -184,8 +187,8 @@ class SynthesisModule(ABC):
 
     def save_checkpoint(self, suffix: str) -> None:
         """
-        Save the model checkpoint into specified run directory. Pytorch-serialized object
-        is saved and compressed into tar.gz archive.
+        Save the model checkpoint, optimizer state, scheduler state and metadata into specified run directory.
+        Pytorch-serialized object is compressed into tar.gz archive.
 
         Args:
             suffix (str) : Suffix to be added to the basic archive name,
@@ -195,11 +198,31 @@ class SynthesisModule(ABC):
         """
 
         state_dict = self.model.state_dict()
+        optimizers_state_dict = {
+            key: value.state_dict() for key, value in self.optimizers.items()
+        }
+        schedulers_state_dict = None
+        if self.schedulers is not None:
+            schedulers_state_dict = {
+                key: value.state_dict() for key, value in self.schedulers.items()
+            }
+        timestamp = get_unique_timestamp()
+        timestamp_hash = hashlib.sha256(str(timestamp).encode("utf-8")).hexdigest()
+
+        metadata_dict = {
+            "version": __version__,
+            "git_hash": get_git_hash(),
+            "timestamp": timestamp,
+            "timestamp_hash": timestamp_hash,
+            "state_dict": state_dict,
+            "optimizers_state_dict": optimizers_state_dict,
+            "schedulers_state_dict": schedulers_state_dict,
+        }
         state_dict_io = io.BytesIO()
         torch_object_filename = "model_" + suffix.strip("_") + ".pt"
         tarfile_object_filename = torch_object_filename.split(".")[0] + ".tar.gz"
         tarfile_object_path = os.path.join(self.model_dir, tarfile_object_filename)
-        torch.save(state_dict, state_dict_io)
+        torch.save(metadata_dict, state_dict_io)
         state_dict_io.seek(0)
         with tarfile.open(tarfile_object_path, "w:gz") as archive:
             tarinfo = tarfile.TarInfo(torch_object_filename)
@@ -209,8 +232,8 @@ class SynthesisModule(ABC):
     # TODO think on loading it, how to handle filename
     def load_checkpoint(self, suffix: Optional[str] = None) -> None:
         """
-        Load the model checkpoint from specified run directory. If specieifd, add suffix
-        to the filename to load specific ones.
+        Load the model checkpoint, optimizer states, scheduler states and metadata from specified run directory.
+        If specieifd, add suffix to the filename to load specific ones.
 
         Args:
             model_dir (str) : Directory with run files stored.
@@ -218,11 +241,46 @@ class SynthesisModule(ABC):
         used mostly for versioning.
 
         """
+
+        MAP_LOCATION_DICT = {
+            "state_dict": self.device,
+            "optimizers_state_dict": "cpu",
+            "schedulers_state_dict": "cpu",
+            "timestamp": "cpu",
+            "timestamp_hash": "cpu",
+            "version": "cpu",
+            "git_hash": "cpu",
+        }
+
         tar_file_path = os.path.join(self.model_dir, "model_" + suffix + ".tar.gz")
         torch_object_path = os.path.basename(tar_file_path).split(".")[0] + ".pt"
         with tarfile.open(tar_file_path, "r:gz") as archive:
-            state_dict = torch.load(archive.extractfile(torch_object_path))
-        self.model.load_state_dict(state_dict=state_dict)
+            metadata_dict = torch.load(
+                archive.extractfile(torch_object_path), map_location=MAP_LOCATION_DICT
+            )
+        timestamp = metadata_dict["timestamp"]
+        timestamp_hash = metadata_dict["timestamp_hash"]
+        git_hash = metadata_dict["git_hash"]
+        optimizers_state_dict = metadata_dict["optimizers_state_dict"]
+        self.model.load_state_dict(state_dict=metadata_dict["state_dict"])
+        for name, optimizer in self.optimizers.items():
+            assert (
+                name in optimizers_state_dict.keys()
+            ), f"Optimizer {name} not found in the checkpoint!"
+            optimizer.load_state_dict(optimizers_state_dict[name])
+        if self.schedulers is not None:
+            schedulers_state_dict = metadata_dict["schedulers_state_dict"]
+            if schedulers_state_dict is not None:
+                for name, scheduler in self.schedulers.items():
+                    assert (
+                        name in schedulers_state_dict.keys()
+                    ), f"Scheduler {name} not found in the checkpoint!"
+                    scheduler.load_state_dict(schedulers_state_dict[name])
+        self.logger.log(10, f"Model loaded from {tar_file_path}")
+        self.logger.log(10, f"GANDLF-Synth version: {metadata_dict['version']}")
+        self.logger.log(10, f"Git hash: {git_hash}")
+        self.logger.log(10, f"Timestamp: {timestamp}")
+        self.logger.log(10, f"Timestamp hash: {timestamp_hash}")
 
     def _apply_postprocessing(self, data_to_transform: torch.Tensor) -> torch.Tensor:
         """
