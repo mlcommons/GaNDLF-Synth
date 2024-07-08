@@ -1,6 +1,6 @@
 import os
+import io
 import tarfile
-import tempfile
 from logging import Logger
 from abc import ABC, abstractmethod
 
@@ -182,11 +182,10 @@ class SynthesisModule(ABC):
         """
         pass
 
-    # TODO this could be done on tempfile?
     def save_checkpoint(self, suffix: str) -> None:
         """
-        Save the model checkpoint into specified run directory. PyTorch-serialized object
-        is saved and compressed into `tar.gz` archive.
+        Save the model checkpoint into specified run directory. Pytorch-serialized object
+        is saved and compressed into tar.gz archive.
 
         Args:
             suffix (str) : Suffix to be added to the basic archive name,
@@ -194,18 +193,18 @@ class SynthesisModule(ABC):
         extensions.
 
         """
-        torch_object_filepath = os.path.join(self.model_dir, "model_" + suffix + ".pt")
+
         state_dict = self.model.state_dict()
-        torch.save(state_dict, torch_object_filepath)
-        tarfile_object_filename = (
-            os.path.basename(torch_object_filepath).split(".")[0] + ".tar.gz"
-        )
+        state_dict_io = io.BytesIO()
+        torch_object_filename = "model_" + suffix.strip("_") + ".pt"
+        tarfile_object_filename = torch_object_filename.split(".")[0] + ".tar.gz"
         tarfile_object_path = os.path.join(self.model_dir, tarfile_object_filename)
+        torch.save(state_dict, state_dict_io)
+        state_dict_io.seek(0)
         with tarfile.open(tarfile_object_path, "w:gz") as archive:
-            archive.add(
-                torch_object_filepath, arcname=os.path.basename(torch_object_filepath)
-            )
-        os.remove(torch_object_filepath)
+            tarinfo = tarfile.TarInfo(torch_object_filename)
+            tarinfo.size = len(state_dict_io.getbuffer())
+            archive.addfile(tarinfo, state_dict_io)
 
     # TODO think on loading it, how to handle filename
     def load_checkpoint(self, suffix: Optional[str] = None) -> None:
