@@ -4,7 +4,7 @@
 import click
 
 
-# from GANDLF.entrypoints import append_copyright_to_help
+from gandlf_synth.entrypoints import append_copyright_to_help
 from gandlf_synth.version import __version__
 from gandlf_synth.cli.main_run import main_run
 
@@ -88,7 +88,7 @@ from gandlf_synth.cli.main_run import main_run
 )
 
 # TODO uncomment when new api will come online!
-# @append_copyright_to_help
+@append_copyright_to_help
 def run(
     config: str,
     main_data_csv_path: str,
