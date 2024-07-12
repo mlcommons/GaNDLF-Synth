@@ -43,9 +43,9 @@ def get_metrics(
     current_metrics = {}
 
     # Converting the list of metrics to a dictionary format.
-    if isinstance(metrics_params_dict, list):
+    if isinstance(metrics_params, list):
         converted_metrics_params = {}
-        for metric_type in metrics_params_dict:
+        for metric_type in metrics_params:
             if isinstance(metric_type, dict):
                 # case in which user specified some metrics with parameters along with some metrics without parameters
                 converted_metrics_params[metric_type.keys()] = metric_type.values()
