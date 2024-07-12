@@ -2,24 +2,6 @@ import re
 import os
 import sys
 from setuptools import setup, find_packages
-from setuptools.command.install import install
-from setuptools.command.develop import develop
-from setuptools.command.egg_info import egg_info
-
-
-class CustomInstallCommand(install):
-    def run(self):
-        install.run(self)
-
-
-class CustomDevelopCommand(develop):
-    def run(self):
-        develop.run(self)
-
-
-class CustomEggInfoCommand(egg_info):
-    def run(self):
-        egg_info.run(self)
 
 
 try:
@@ -44,29 +26,19 @@ dockerfiles = [
     for item in os.listdir(os.path.dirname(os.path.abspath(__file__)))
     if (os.path.isfile(item) and item.startswith("Dockerfile-"))
 ]
-entrypoint_files = [
-    item
-    for item in os.listdir(os.path.dirname(os.path.abspath(__file__)))
-    if (os.path.isfile(item) and item.startswith("gandlf-sytnh_"))
-]
-setup_files = ["setup.py", ".dockerignore", "pyproject.toml", "MANIFEST.in"]
 
-all_extra_files = dockerfiles + entrypoint_files + setup_files
-all_extra_files_pathcorrected = [os.path.join("../", item) for item in all_extra_files]
+extra_files = []
+toplevel_package_excludes = ["testing*"]
+
 requirements = ["GANDLF@git+https://github.com/mlcommons/GandLF.git@master"]
 if __name__ == "__main__":
     setup(
         name="gandlf_synth",
         version=__version__,
         author="MLCommons",
-        author_email="gandlf@mlcommons.org",
+        author_email="mail@mlcommons.org",
         python_requires=">=3.8, <3.12",
         packages=find_packages(where=os.path.dirname(os.path.abspath(__file__))),
-        cmdclass={
-            "install": CustomInstallCommand,
-            "develop": CustomDevelopCommand,
-            "egg_info": CustomEggInfoCommand,
-        },
         classifiers=[
             "Development Status :: 3 - Alpha",
             "Intended Audience :: Science/Research",
@@ -86,7 +58,7 @@ if __name__ == "__main__":
         long_description=readme,
         long_description_content_type="text/markdown",
         include_package_data=True,
-        package_data={"gandlf-synth": all_extra_files_pathcorrected},
-        keywords="synthesis, image-generation, generative-AI, data-augmentation, medical-imaging, clinical-workflows, deep-learning, pytorch",
+        package_data={"gandlf_synth": extra_files},
+        keywords="image generation, image synthesis, data-augmentation, medical-imaging, clinical-workflows, deep-learning, pytorch",
         zip_safe=False,
     )
