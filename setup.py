@@ -31,7 +31,7 @@ except Exception as error:
 
 
 try:
-    filepath = "GANDLF/version.py"
+    filepath = "gandlf_synth/version.py"
     version_file = open(filepath)
     (__version__,) = re.findall('__version__ = "(.*)"', version_file.read())
 
