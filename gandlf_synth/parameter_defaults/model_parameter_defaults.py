@@ -16,6 +16,6 @@ MODEL_PARAMETER_DEFAULTS = {
     "patience": 0,  # number of epochs to wait for performance improvement
     "labeling_paradigm": "unlabeled",  # labeling paradigm
     "inference_parameters": {},  # inference parameters
-    "schedulers": {},
+    "schedulers": None,
     "architecture": {},
 }

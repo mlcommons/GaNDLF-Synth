@@ -35,17 +35,13 @@ class SynthesisModule(ABC):
     ) -> None:
         """Initialize the synthesis module.
 
-                Args:
-                    params (dict): Dictionary of parameters.
-                    logger (Logger): Logger for logging the values.
-        <<<<<<< HEAD
-                    model_dir (str) : Model and results output directory.
-        =======
-                    model_dir (str) : Main run directory.
-        >>>>>>> 66b16df (Implementing saving checkpoints and new classparam)
-                    metric_calculator (object,optional): Metric calculator object.
-                    postprocessing_transforms (List[Callable], optional): Postprocessing transformations to apply.
-                    device (str, optional): Device to perform computations on. Defaults to "cpu".
+        Args:
+            params (dict): Dictionary of parameters.
+            logger (Logger): Logger for logging the values.
+            model_dir (str) : Model and results output directory.
+            metric_calculator (object,optional): Metric calculator object.
+            postprocessing_transforms (List[Callable], optional): Postprocessing transformations to apply.
+            device (str, optional): Device to perform computations on. Defaults to "cpu".
         """
 
         super().__init__()
@@ -177,7 +173,9 @@ class SynthesisModule(ABC):
     def _initialize_schedulers(
         self,
     ) -> Union[
-        optim.lr_scheduler._LRScheduler, Dict[str, optim.lr_scheduler._LRScheduler]
+        optim.lr_scheduler._LRScheduler,
+        Dict[str, optim.lr_scheduler._LRScheduler],
+        None,
     ]:
         """
         Initialize the learning rate scheduler (or schedulers) for the synthesis module.
@@ -186,8 +184,8 @@ class SynthesisModule(ABC):
         self.params dictionary probably.
 
         Returns:
-            scheduler (torch.optim.lr_scheduler._LRScheduler or dict): Scheduler(s) for
-        the model.
+            scheduler (torch.optim.lr_scheduler._LRScheduler or dict or None): Scheduler(s) for
+        the model if any.
         """
         pass
 
@@ -204,14 +202,21 @@ class SynthesisModule(ABC):
         """
 
         state_dict = self.model.state_dict()
-        optimizers_state_dict = {
-            key: value.state_dict() for key, value in self.optimizers.items()
-        }
-        schedulers_state_dict = None
-        if self.schedulers is not None:
-            schedulers_state_dict = {
-                key: value.state_dict() for key, value in self.schedulers.items()
+        if isinstance(self.optimizers, optim.Optimizer):
+            optimizers_state_dict = self.optimizers.state_dict()
+        else:
+            optimizers_state_dict = {
+                key: value.state_dict() for key, value in self.optimizers.items()
             }
+        schedulers_state_dict = None
+
+        if self.schedulers is not None:
+            if isinstance(self.schedulers, optim.lr_scheduler._LRScheduler):
+                schedulers_state_dict = self.schedulers.state_dict()
+            else:
+                schedulers_state_dict = {
+                    key: value.state_dict() for key, value in self.schedulers.items()
+                }
         timestamp = get_unique_timestamp()
         timestamp_hash = hashlib.sha256(str(timestamp).encode("utf-8")).hexdigest()
 

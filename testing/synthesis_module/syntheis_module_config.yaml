@@ -50,11 +50,7 @@ metrics_config:
 modality: rad
 model_config:
   amp: false
-  tensor_shape:
-    - 128
-    - 128
   architecture:
-  
     latent_vector_size: 100
   converter_type: soft
   input_shape:
@@ -85,7 +81,9 @@ model_config:
       lr: 0.0002
       name: adam
       weight_decay: 0.0
-  schedulers: {}
+  tensor_shape:
+  - 128
+  - 128
 num_epochs: 1
 patience: 0
 save_model_every_n_epochs: 1

@@ -20,7 +20,6 @@ from gandlf_synth.schedulers import get_scheduler
 from typing import Dict, Union
 
 
-# TODO
 class UnlabeledDCGANModule(SynthesisModule):
     def training_step(self, batch: object, batch_idx: int) -> torch.Tensor:
         real_images = self._ensure_device_placement(batch)
@@ -72,9 +71,6 @@ class UnlabeledDCGANModule(SynthesisModule):
                 f"NaN loss detected in discriminator step for batch {batch_idx}, the step will be skipped",
                 RuntimeWarning,
             )
-        # Scheduler step
-        if self.schedulers["disc_scheduler"] is not None:
-            self.schedulers["disc_scheduler"].step()
 
         # GENERATOR PASS
         self.optimizers["gen_optimizer"].zero_grad(set_to_none=True)
@@ -100,9 +96,12 @@ class UnlabeledDCGANModule(SynthesisModule):
             )
 
         # Scheduler step
-        if self.schedulers["gen_scheduler"] is not None:
-            self.schedulers["gen_scheduler"].step()
-
+        if self.schedulers is not None:
+            if self.schedulers["gen_scheduler"] is not None:
+                self.schedulers["gen_scheduler"].step()
+            # Scheduler step
+            if self.schedulers["disc_scheduler"] is not None:
+                self.schedulers["disc_scheduler"].step()
         self._log("disc_loss", loss_disc)
         self._log("gen_loss", gen_loss)
         if self.metric_calculator is not None:
@@ -198,43 +197,6 @@ class UnlabeledDCGANModule(SynthesisModule):
         self._log("val_disc_loss", disc_loss)
         self._log("val_gen_loss", gen_loss)
 
-    # TODO does this method even have sense in that form? It's pretty much the same
-    # as the validation step
-    @torch.no_grad
-    def test_step(self, batch: object, batch_idx: int) -> torch.Tensor:
-        real_images = self._ensure_device_placement(batch)
-        real_labels = torch.full(
-            (real_images.shape[0], 1),
-            fill_value=1.0,
-            dtype=torch.float,
-            device=self.device,
-        )
-        fake_labels = real_labels.copy_().fill_(0.0)
-        batch_size = real_images.shape[0]
-        latent_vector = generate_latent_vector(
-            batch_size,
-            self.model_config.architecture["latent_vector_size"],
-            self.model_config.n_dimensions,
-            self.device,
-        )
-        generated_images = self.model.generator(latent_vector)
-        disc_preds_real = self.model.discriminator(real_images)
-        disc_preds_fake = self.model.discriminator(generated_images)
-
-        disc_loss = self.losses["disc_loss"](
-            disc_preds_real, real_labels
-        ) + self.losses["disc_loss"](disc_preds_fake, fake_labels)
-        gen_loss = self.losses["gen_loss"](disc_preds_fake, real_labels)
-
-        if self.metric_calculator is not None:
-            metric_results = {}
-            for metric_name, metric in self.metric_calculator.items():
-                test_metric_name = f"test_{metric_name}"
-                metric_results[test_metric_name] = metric(real_images, generated_images)
-            self._log_dict(metric_results)
-        self._log("test_disc_loss", disc_loss)
-        self._log("test_gen_loss", gen_loss)
-
     @torch.no_grad
     def inference_step(self, **kwargs) -> torch.Tensor:
         print("Inference step")
@@ -321,7 +283,7 @@ class UnlabeledDCGANModule(SynthesisModule):
                     gen_scheduler_config not in UNSUPPORTED_SCHEDULERS
                 ), f"Scheduler {gen_scheduler_config.keys()[0]} is not supported for the DCGAN model."
                 gen_scheduler = get_scheduler(gen_scheduler_config)
-        return {"disc_scheduler": disc_scheduler, "gen_scheduler": gen_scheduler}
+            return {"disc_scheduler": disc_scheduler, "gen_scheduler": gen_scheduler}
 
     def _generate_image_set_from_fixed_vector(
         self, n_images_to_generate

@@ -34,7 +34,7 @@ BASIC_LOGGER_CONFIG = logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     level="INFO",
 )
-LOGGER_OBJECT = logging.getLogger("synthesis_module_logger", level=logging.DEBUG)
+LOGGER_OBJECT = logging.getLogger("synthesis_module_logger")
 
 # Take all available modules registered
 AVAILABLE_MODULES = list(ModuleFactory.AVAILABE_MODULES.keys())
