@@ -1,38 +1,28 @@
 import os
-import shutil
-import pickle
-from warnings import warn
-from logging import Logger
-
 import numpy as np
 import pandas as pd
 from torch.utils.data import DataLoader
-from torchio.transforms import Compose
 
 from gandlf_synth.models.configs.config_abc import AbstractModelConfig
 from gandlf_synth.models.modules.module_factory import ModuleFactory
 from gandlf_synth.data.datasets_factory import DatasetFactory
 from gandlf_synth.data.dataloaders_factory import DataloaderFactory
 from gandlf_synth.metrics import get_metrics
-from gandlf_synth.data.preprocessing import get_preprocessing_transforms
-from gandlf_synth.data.augmentations import get_augmentation_transforms
-from gandlf_synth.data.postprocessing import get_postprocessing_transforms
+from gandlf_synth.utils.managers_utils import (
+    prepare_logger,
+    prepare_postprocessing_transforms,
+    load_model_checkpoint,
+    prepare_transforms,
+    assert_input_correctness,
+)
 from gandlf_synth.utils.io_utils import save_single_image
-from abc import ABC, abstractmethod
 
-from typing import List, Optional, Type, Callable, Dict, Union
-
-
-class AbstractInferencer(ABC):
-    def __init__(self, inference_config: dict) -> None:
-        self.inference_config = inference_config
-
-    @abstractmethod
-    def infer(self):
-        pass
+from typing import Optional, Type, Tuple
 
 
 class InferenceManager:
+    LOGGER_NAME = "InferenceManager"
+
     """Class to manage the inference of the model on the input data."""
 
     def __init__(
@@ -63,80 +53,30 @@ class InferenceManager:
         self.device = device
         self.dataframe_reconstruction = dataframe_reconstruction
         self._validate_inference_config()
-        self.logger = self._prepare_logger()
-        self.metric_calculator = self._prepare_metric_calculator()
+        self.logger = prepare_logger(self.LOGGER_NAME)
+        self.metric_calculator = get_metrics(self.global_config["metrics"])
 
         module_factory = ModuleFactory(
             model_config=self.model_config,
             logger=self.logger,
             device=self.device,
             model_dir=self.model_dir,
-            device=self.device,
-            postprocessing_transforms=self._prepare_postprocessing_transforms(),
+            postprocessing_transforms=prepare_postprocessing_transforms(
+                global_config=self.global_config
+            ),
         )
         self.module = module_factory.get_module()
-        self._load_model_checkpoint()
+        load_model_checkpoint(
+            output_dir=self.model_dir,
+            synthesis_module=self.module,
+            manager_logger=self.logger,
+        )
         # ensure model in eval mode
         self.module.model.eval()
         if self.dataframe_reconstruction is not None:
-            self.dataloader = self._prepare_dataloader()
+            self.dataloader = self._prepare_inference_dataloader()
 
-    def _prepare_metric_calculator(self) -> dict:
-        """
-        Prepare the metric calculator for the training process.
-
-        Returns:
-            dict: The dictionary of metrics to be calculated.
-        """
-        return get_metrics(self.global_config["metrics"])
-
-    def _prepare_logger(self) -> Logger:
-        """
-        Prepare the logger for the training process.
-        """
-        logger = Logger("GandlfSynthTrainingManager")
-        return logger
-
-    # TODO: should we allow the user to maybe even specify the checkpoint to load?
-    def _load_model_checkpoint(self):
-        """
-        Resume the training process from a previous checkpoint if `resume` mode is used. This function
-        establishes which model checkpoint to load and loads it.
-        """
-
-        initial_model_path = os.path.exists(
-            os.path.join(self.output_dir, "model_initial.tar.gz")
-        )
-        latest_model_path_exists = os.path.exists(
-            os.path.join(self.output_dir, "model_latest.tar.gz")
-        )
-        if latest_model_path_exists:
-            self.logger.info("Resuming training from the latest checkpoint.")
-            self.module.load_checkpoint(suffix="latest")
-        elif initial_model_path:
-            self.logger.info("Resuming training from the initial checkpoint.")
-            self.module.load_checkpoint(suffix="initial")
-        else:
-            self.logger.info(
-                "No model checkpoint found in the model directory, training from scratch."
-            )
-
-    def _prepare_transforms(self) -> Union[Compose, None]:
-        """Prepare the transforms for the inference process in case of
-        reconstruction data provided. Only preprocessing will be applied."""
-        transforms_list = []
-        preprocessing_operations = None
-        preprocessing_config = self.global_config.get("data_preprocessing")
-        if preprocessing_config:
-            preprocessing_operations = preprocessing_config.get("inference")
-        if preprocessing_operations:
-            transforms_list.extend(
-                get_preprocessing_transforms(preprocessing_operations)
-            )
-        if len(transforms_list) > 0:
-            return Compose(transforms_list)
-
-    def _prepare_dataloader(self) -> DataLoader:
+    def _prepare_inference_dataloader(self) -> DataLoader:
         """
         Prepare the dataloader for the inference process if reconstruction
         data is provided.
@@ -144,7 +84,12 @@ class InferenceManager:
         Returns:
             torch.utils.data.DataLoader: The dataloader for the inference process.
         """
-        transforms = self._prepare_transforms()
+        transforms = prepare_transforms(
+            augmentations_config=self.global_config.get("augmentations"),
+            preprocessing_config=self.global_config.get("preprocessing"),
+            mode="inference",
+            input_shape=self.model_config.input_shape,
+        )
         dataset_factory = DatasetFactory()
         dataloader_factory = DataloaderFactory(params=self.global_config)
         dataset = dataset_factory.get_dataset(
@@ -154,21 +99,6 @@ class InferenceManager:
         )
         dataloader = dataloader_factory.get_inference_dataloader(dataset=dataset)
         return dataloader
-
-    def _prepare_postprocessing_transforms(self) -> List[Callable]:
-        """
-        Prepare the postprocessing transforms.
-
-        Returns:
-            List[Callable]: The list of postprocessing transforms.
-        """
-        postprocessing_transforms = None
-        postprocessing_config = self.global_config.get("data_postprocessing")
-        if postprocessing_config is not None:
-            postprocessing_transforms = get_postprocessing_transforms(
-                postprocessing_config
-            )
-        return postprocessing_transforms
 
     # TODO: probably needs extension in the future
     def _validate_inference_config(self):
@@ -200,6 +130,26 @@ class InferenceManager:
                     n_images > 0
                 ), "The number of images to generate must be greater than 0."
 
+    @staticmethod
+    def _determine_n_batches(
+        n_images_to_generate: int, batch_size: int
+    ) -> Tuple[int, int]:
+        """
+        Determine the number of batches needed to generate the images.
+
+        Args:
+            n_images_to_generate (int): The number of images to generate.
+            batch_size (int): The batch size.
+
+        Returns:
+            Tuple[int, int]: The number of batches and the remainder.
+        """
+        n_batches = n_images_to_generate // batch_size
+        remainder = n_images_to_generate % batch_size
+        if remainder > 0:
+            n_batches += 1
+        return n_batches, remainder
+
     def _unlabeled_inference(self, inference_config: dict):
         """
         Perform inference on the unlabeled data.
@@ -212,11 +162,11 @@ class InferenceManager:
         n_images_to_generate = inference_config["n_images_to_generate"]
         self.logger.info(f"Generating {n_images_to_generate} images.")
         batch_size = self.global_config.get("batch_size", 1)
+        n_batches, remainder = self._determine_n_batches(
+            n_images_to_generate, batch_size
+        )
         # determine how many batches are needed
-        n_batches = n_images_to_generate // batch_size
-        remainder = n_images_to_generate % batch_size
-        if remainder > 0:
-            n_batches += 1
+
         # generate the images
         for i in range(n_batches):
             n_images_batch = batch_size
@@ -250,15 +200,17 @@ class InferenceManager:
             inference_config (dict): The inference configuration dictionary.
         """
 
-        n_images_to_generate = inference_config["n_images_to_generate"]
-        for class_label, n_images in n_images_to_generate.items():
-            self.logger.info(f"Generating {n_images_to_generate} images.")
-            batch_size = self.global_config.get("batch_size", 1)
+        per_class_n_images_to_generate = inference_config["n_images_to_generate"]
+        for class_label, n_images_to_generate in per_class_n_images_to_generate.items():
+            self.logger.info(
+                f"Generating {n_images_to_generate} images for class {class_label}."
+            )
             # determine how many batches are needed
-            n_batches = n_images // batch_size
-            remainder = n_images % batch_size
-            if remainder > 0:
-                n_batches += 1
+            batch_size = self.global_config.get("batch_size", 1)
+
+            n_batches, remainder = self._determine_n_batches(
+                n_images_to_generate, batch_size
+            )
             # generate the images
             for i in range(n_batches):
                 n_images_batch = batch_size
@@ -277,7 +229,8 @@ class InferenceManager:
                     generated_images = generated_images.permute(0, 2, 3, 4, 1)
                 for j, generated_image in enumerate(generated_images):
                     image_path = os.path.join(
-                        self.output_dir, f"generated_image_{i * batch_size + j}"
+                        self.output_dir,
+                        f"generated_image_{i * batch_size + j}_class_{class_label}",
                     )
                     save_single_image(
                         generated_image,

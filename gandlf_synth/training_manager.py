@@ -2,25 +2,28 @@ import os
 import shutil
 import pickle
 from warnings import warn
-from logging import Logger
 
 import torch
 import pandas as pd
-from torchio.transforms import Compose
 
 from gandlf_synth.models.configs.config_abc import AbstractModelConfig
 from gandlf_synth.models.modules.module_factory import ModuleFactory
 from gandlf_synth.data.datasets_factory import DatasetFactory
 from gandlf_synth.data.dataloaders_factory import DataloaderFactory
 from gandlf_synth.metrics import get_metrics
-from gandlf_synth.data.preprocessing import get_preprocessing_transforms
-from gandlf_synth.data.postprocessing import get_postprocessing_transforms
-from GANDLF.data.augmentation import get_augmentation_transforms
+from gandlf_synth.utils.managers_utils import (
+    prepare_logger,
+    prepare_postprocessing_transforms,
+    load_model_checkpoint,
+    prepare_transforms,
+    assert_input_correctness,
+)
 
-from typing import List, Optional, Type, Callable
+from typing import Optional, Type
 
 
 class TrainingManager:
+    LOGGER_NAME = "training_manager"
     """
     A class to manage the training process of a model. This class ties all the necessary
     components together to train a model.
@@ -73,7 +76,7 @@ class TrainingManager:
         self.reset = reset
         self.device = device
 
-        self.logger = self._prepare_logger()
+        self.logger = prepare_logger(self.LOGGER_NAME)
         self._prepare_output_dir()
         self._load_or_save_parameters()
         self._assert_parameter_correctness()
@@ -89,13 +92,19 @@ class TrainingManager:
             model_config=self.model_config,
             logger=self.logger,
             model_dir=self.output_dir,
-            metric_calculator=self._prepare_metric_calculator(),
+            metric_calculator=get_metrics(self.global_config["metrics"]),
             device=self.device,
-            postprocessing_transforms=self._prepare_postprocessing_transforms(),
+            postprocessing_transforms=prepare_postprocessing_transforms(
+                global_config=self.global_config
+            ),
         )
         self.module = module_factory.get_module()
         if self.resume:
-            self._load_model_checkpoint()
+            load_model_checkpoint(
+                output_dir=self.output_dir,
+                synthesis_module=self.module,
+                manager_logger=self.logger,
+            )
 
     def _warn_user(self):
         """
@@ -128,16 +137,16 @@ class TrainingManager:
         if self.val_dataframe is None and self.val_ratio != 0:
             warn(
                 "Validation data is not provided, and the validation ratio is set to a non-zero value. "
-                "Validation data will be extracted from the training data.",
-                "IMPORTANT: samples from the training data will be RANDOMLY selected REGARDLESS of the subjects they come from.",
+                "Validation data will be extracted from the training data."
+                "IMPORTANT: samples from the training data will be RANDOMLY selected REGARDLESS of the subjects they come from."
                 "If you want to avoid samples from the same subject to be split between training and validation, provide a validation dataframe.",
                 UserWarning,
             )
         if self.test_dataframe is None and self.test_ratio != 0:
             warn(
                 "Test data is not provided, and the test ratio is set to a non-zero value. "
-                "Test data will be extracted from the training data.",
-                "IMPORTANT: samples from the training data will be RANDOMLY selected REGARDLESS of the subjects they come from.",
+                "Test data will be extracted from the training data."
+                "IMPORTANT: samples from the training data will be RANDOMLY selected REGARDLESS of the subjects they come from."
                 "If you want to avoid samples from the same subject to be split between training and testing, provide a test dataframe.",
                 UserWarning,
             )
@@ -167,35 +176,6 @@ class TrainingManager:
             )
             self.reset = False
 
-    def _assert_input_correctness(self, batch_idx, batch):
-        """
-        Assert the correctness of the input shape in a given data batch.
-
-        Args:
-            batch_idx (int): The index of the batch.
-            batch (object): The data batch.
-        """
-        configured_input_shape = self.model_config.tensor_shape
-        configured_n_channels = self.model_config.n_channels
-        expected_input_shape = [configured_n_channels] + configured_input_shape
-        # maybe in  the upcoming PRs we should consider some dict-like
-        # structure returned by the dataloader? So we can access the data
-        # by keywords, like batch["image"] or batch["label"] instead of
-        # indices
-        batch_image_shape = list(batch[0].shape)
-        assert (
-            batch_image_shape == expected_input_shape
-        ), f"Batch {batch_idx} has incorrect shape. Expected: {expected_input_shape}, got: {batch_image_shape}"
-
-    def _prepare_metric_calculator(self) -> dict:
-        """
-        Prepare the metric calculator for the training process.
-
-        Returns:
-            dict: The dictionary of metrics to be calculated.
-        """
-        return get_metrics(self.global_config["metrics"])
-
     def _load_or_save_parameters(self):
         """
         Load or save the parameters for the training process.
@@ -221,13 +201,6 @@ class TrainingManager:
                     pickle_file,
                     protocol=pickle.HIGHEST_PROTOCOL,
                 )
-
-    def _prepare_logger(self) -> Logger:
-        """
-        Prepare the logger for the training process.
-        """
-        logger = Logger("GandlfSynthTrainingManager")
-        return logger
 
     def _prepare_output_dir(self):
         """
@@ -238,112 +211,6 @@ class TrainingManager:
 
         if not os.path.exists(self.output_dir):
             os.makedirs(self.output_dir)
-
-    # TODO: should we allow the user to maybe even specify the checkpoint to load?
-    def _load_model_checkpoint(self):
-        """
-        Resume the training process from a previous checkpoint if `resume` mode is used. This function
-        establishes which model checkpoint to load and loads it.
-        """
-
-        initial_model_path = os.path.exists(
-            os.path.join(self.output_dir, "model_initial.tar.gz")
-        )
-        latest_model_path_exists = os.path.exists(
-            os.path.join(self.output_dir, "model_latest.tar.gz")
-        )
-        if latest_model_path_exists:
-            self.logger.info("Resuming training from the latest checkpoint.")
-            self.module.load_checkpoint(suffix="latest")
-        elif initial_model_path:
-            self.logger.info("Resuming training from the initial checkpoint.")
-            self.module.load_checkpoint(suffix="initial")
-        else:
-            self.logger.info(
-                "No model checkpoint found in the model directory, training from scratch."
-            )
-
-    def _load_or_save_parameters(self):
-        """
-        Load or save the parameters for the training process.
-        """
-        parameters_pickle_path = os.path.join(self.output_dir, "parameters.pkl")
-        pickle_file_exists = os.path.exists(parameters_pickle_path)
-
-        if self.resume and pickle_file_exists:
-            self.logger.info("Resuming training from previous run, loading parameters.")
-            with open(parameters_pickle_path, "rb") as pickle_file:
-                loaded_parameters = pickle.load(pickle_file)
-            self.global_config = loaded_parameters["global_config"]
-            self.model_config = loaded_parameters["model_config"]
-
-        else:
-            self.logger.info("Saving parameters for the current run.")
-            with open(parameters_pickle_path, "wb") as pickle_file:
-                pickle.dump(
-                    {
-                        "global_config": self.global_config,
-                        "model_config": self.model_config,
-                    },
-                    pickle_file,
-                    protocol=pickle.HIGHEST_PROTOCOL,
-                )
-
-    def _prepare_postprocessing_transforms(self) -> List[Callable]:
-        """
-        Prepare the postprocessing transforms
-        """
-        postprocessing_transforms = None
-        postprocessing_config = self.global_config.get("data_postprocessing")
-        if postprocessing_config is not None:
-            postprocessing_transforms = get_postprocessing_transforms(
-                postprocessing_config
-            )
-        return postprocessing_transforms
-
-    @staticmethod
-    def _prepare_transforms(
-        preprocessing_config: dict,
-        augmentations_config: dict,
-        mode: str,
-        input_shape: tuple,
-    ) -> Compose:
-        """
-        Prepare the transforms for the training, validation, and testing datasets.
-
-        Args:
-            preprocessing_config (dict): The preprocessing configuration.
-            augmentations_config (dict): The augmentations configuration.
-            mode (str): The mode for which the transforms are being prepared (train, val, test).
-            input_shape (tuple): The input shape of the data.
-        """
-        assert mode in [
-            "train",
-            "val",
-            "test",
-        ], "Mode must be one of 'train', 'val', or 'test'"
-        transforms_list = []
-        preprocessing_operations = None
-        augmentation_operations = None
-
-        if preprocessing_config is not None:
-            preprocessing_operations = preprocessing_config.get(mode)
-        if augmentations_config is not None:
-            augmentation_operations = augmentations_config.get(mode)
-        if preprocessing_operations is not None:
-            train_mode = True if mode == "train" else False
-            preprocessing_transforms = get_preprocessing_transforms(
-                preprocessing_operations, train_mode, input_shape
-            )
-            transforms_list.extend(preprocessing_transforms)
-        # as in Gandlf, we will use augmentations only in training mode
-        if augmentation_operations is not None and mode == "train":
-            augmentation_transforms = get_augmentation_transforms(
-                augmentation_operations
-            )
-            transforms_list.extend(augmentation_transforms)
-        if len(transforms_list) > 0:
-            return Compose(transforms_list)
 
     @staticmethod
     def _extract_random_data_from_dataframe(dataframe: pd.DataFrame, ratio: float):
@@ -382,7 +249,7 @@ class TrainingManager:
             self.val_dataframe = self._extract_random_data_from_dataframe(
                 self.train_dataframe, self.val_ratio
             )
-        train_transforms = self._prepare_transforms(
+        train_transforms = prepare_transforms(
             preprocessing_config,
             augmentations_config,
             "train",
@@ -396,7 +263,7 @@ class TrainingManager:
         val_dataloader = None
         test_dataloader = None
         if self.val_dataframe is not None:
-            val_transforms = self._prepare_transforms(
+            val_transforms = prepare_transforms(
                 preprocessing_config,
                 augmentations_config,
                 "val",
@@ -407,7 +274,7 @@ class TrainingManager:
             )
             val_dataloader = dataloader_factory.get_validation_dataloader(val_dataset)
         if self.test_dataframe is not None:
-            test_transforms = self._prepare_transforms(
+            test_transforms = prepare_transforms(
                 preprocessing_config,
                 augmentations_config,
                 "test",
@@ -422,10 +289,6 @@ class TrainingManager:
 
         return train_dataloader, val_dataloader, test_dataloader
 
-    # TODO: this is still WIP, here we need to handle things like model saving
-    # etc, nevertheless, the basic idea is there
-    # Also I did not yet figure out the resume part, DCGAN Module needs to
-    # implement this method and we need to thking how and where to execute it
     def run_training(self):
         """
         Train the model.
@@ -434,14 +297,24 @@ class TrainingManager:
         self.module.save_checkpoint(suffix="_start")
         for epoch in range(self.global_config["num_epochs"]):
             for batch_idx, batch in enumerate(self.train_dataloader):
-                self._assert_input_correctness(batch_idx, batch)
+                assert_input_correctness(
+                    configured_input_shape=self.model_config.tensor_shape,
+                    configured_n_channels=self.model_config.n_channels,
+                    batch_idx=batch_idx,
+                    batch=batch,
+                )
                 self.module._on_train_epoch_start(epoch)
                 self.module.training_step(batch, batch_idx)
                 self.module._on_train_epoch_end(epoch)
             if self.val_dataloader is not None:
                 for batch_idx, batch in enumerate(self.val_dataloader):
-                    self._assert_input_correctness(batch_idx, batch)
-                    self.module._on_validation_epoch_start(batch, batch_idx)
+                    assert_input_correctness(
+                        configured_input_shape=self.model_config.tensor_shape,
+                        configured_n_channels=self.model_config.n_channels,
+                        batch_idx=batch_idx,
+                        batch=batch,
+                    )
+                    self.module._on_validation_epoch_start(epoch)
                     self.module.validation_step(batch, batch_idx)
                     self.module._on_validation_epoch_end(epoch)
             if self.global_config["save_model_every_n_epochs"] != -1 and (
@@ -451,7 +324,12 @@ class TrainingManager:
             self.module.save_checkpoint(suffix="latest")
         if self.test_dataloader is not None:
             for batch_idx, batch in enumerate(self.test_dataloader):
-                self._assert_input_correctness(batch_idx, batch)
+                assert_input_correctness(
+                    configured_input_shape=self.model_config.tensor_shape,
+                    configured_n_channels=self.model_config.n_channels,
+                    batch_idx=batch_idx,
+                    batch=batch,
+                )
                 self.module._on_test_start()
                 self.module.test_step(batch, batch_idx)
-                self.module._on_test_end(epoch)
+                self.module._on_test_end()
