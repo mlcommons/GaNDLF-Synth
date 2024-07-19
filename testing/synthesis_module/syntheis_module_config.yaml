@@ -7,6 +7,7 @@ data_preprocessing:
     - 128
     - 128
   train:
+    rescale: null
     resize:
     - 128
     - 128
@@ -57,7 +58,7 @@ model_config:
     generator:
       name: BCELogits
   model_name: dcgan
-  n_channels: 2
+  n_channels: 3
   n_dimensions: 2
   norm_type: batch
   optimizers:
