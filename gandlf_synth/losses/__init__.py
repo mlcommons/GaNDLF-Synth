@@ -1,3 +1,4 @@
+from copy import deepcopy
 from torch.nn import Module
 from .generic import CEL, BCELogits, CE
 
@@ -16,12 +17,13 @@ def get_loss(loss_params: dict) -> Module:
 
     """
     # Retrieve the loss function type from the input parameters
-    loss_type = loss_params["name"]
-    loss_params.pop("name")
+    loss_params_copy = deepcopy(loss_params)
+    loss_type = loss_params_copy["name"]
+    loss_params_copy.pop("name")
     assert (
         loss_type in global_losses_dict
     ), f"Loss function type {loss_type} not found. Please choose from {global_losses_dict.keys()}."
 
     # Create the loss function instance using the specified type and input parameters
     loss_creator = global_losses_dict[loss_type]
-    return loss_creator(loss_params)
+    return loss_creator(loss_params_copy)

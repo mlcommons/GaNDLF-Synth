@@ -188,7 +188,7 @@ class InferenceManager:
                 save_single_image(
                     generated_image,
                     image_path,
-                    self.model_config.modality,
+                    self.global_config["modality"],
                     self.model_config.n_dimensions,
                 )
 
@@ -235,11 +235,11 @@ class InferenceManager:
                     save_single_image(
                         generated_image,
                         image_path,
-                        self.model_config.modality,
+                        self.global_config["modality"],
                         self.model_config.n_dimensions,
                     )
 
-    def infer(self):
+    def run_inference(self):
         """
         Perform inference on the data.
         """
