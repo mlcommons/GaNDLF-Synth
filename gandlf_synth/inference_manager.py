@@ -100,18 +100,18 @@ class InferenceManager:
             """
             return os.path.join(output_dir, os.path.basename(model_dir) + "_inference_output")
 
-        output_dir_path = _prepare_out_dir_path(output_dir, model_dir)
+        model_inference_output_path = _prepare_out_dir_path(output_dir, model_dir)
 
-        if not os.path.exists(output_dir_path):
-            os.makedirs(output_dir_path)
-            return output_dir_path
+        if not os.path.exists(model_inference_output_path):
+            os.makedirs(model_inference_output_path)
+            return model_inference_output_path
 
         index = 1
-        while os.path.exists(f"{output_dir_path}_{index}"):
+        while os.path.exists(f"{model_inference_output_path}_{index}"):
             index += 1
-        output_dir_path = f"{output_dir_path}_{index}"
-        os.makedirs(output_dir_path)
-        return output_dir_path
+        model_inference_output_path = f"{model_inference_output_path}_{index}"
+        os.makedirs(model_inference_output_path)
+        return model_inference_output_path
 
     def _prepare_inference_dataloader(self) -> DataLoader:
         """
