@@ -98,7 +98,7 @@ class InferenceManager:
             Returns:
                 str: The save path for the inference results.
             """
-            return os.path.join(output_dir, os.path.basename(model_dir))
+            return os.path.join(output_dir, os.path.basename(model_dir) + "_inference_output")
 
         output_dir_path = _prepare_out_dir_path(output_dir, model_dir)
 
