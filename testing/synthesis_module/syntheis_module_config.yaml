@@ -36,17 +36,11 @@ dataloader_config:
     pin_memory: false
     shuffle: false
 in_memory: false
+inference_parameters:
+  batch_size: 1
+  n_images_to_generate: 10
 metrics:
 - ncc_min
-metrics_config:
-  fid:
-    features_size: 2048
-  lpips:
-    converter_type: soft
-    net_type: squeeze
-    reduction: mean
-  ssim:
-    reduction: none
 modality: rad
 model_config:
   amp: false

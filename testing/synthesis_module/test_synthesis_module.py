@@ -16,12 +16,14 @@ from gandlf_synth.data.datasets_factory import DatasetFactory
 from gandlf_synth.data.dataloaders_factory import DataloaderFactory
 from gandlf_synth.models.modules.module_factory import ModuleFactory
 from gandlf_synth.training_manager import TrainingManager
+from gandlf_synth.inference_manager import InferenceManager
 from typing import List
 
 from typing import List
 
 TEST_DIR = Path(__file__).parent.absolute().__str__()
 OUTPUT_DIR = os.path.join(TEST_DIR, "output")
+INFERENCE_OUTPUT_DIR = os.path.join(TEST_DIR, "inference_output")
 LOG_DIR = os.path.join(TEST_DIR, "logs")
 TEST_CONFIG_PATH = os.path.join(TEST_DIR, "syntheis_module_config.yaml")
 with open(TEST_CONFIG_PATH, "r") as config_file:
@@ -291,3 +293,29 @@ def test_training_manager_reset_resume():
             device=DEVICE,
         )
         training_manager.run_training()
+
+
+def test_inference_manager():
+    test_name = inspect.currentframe().f_code.co_name
+    with ContextManagerTests(test_name):
+        config_manager = ConfigManager(TEST_CONFIG_PATH)
+        global_config, model_config = config_manager.prepare_configs()
+        example_dataframe = pd.read_csv(CSV_PATH)
+        training_manager = TrainingManager(
+            train_dataframe=example_dataframe,
+            output_dir=OUTPUT_DIR,
+            global_config=global_config,
+            model_config=model_config,
+            resume=False,
+            reset=False,
+            device=DEVICE,
+        )
+        training_manager.run_training()
+        inference_manager = InferenceManager(
+            model_config=model_config,
+            global_config=global_config,
+            model_dir=OUTPUT_DIR,
+            output_dir=INFERENCE_OUTPUT_DIR,
+            device=DEVICE,
+        )
+        inference_manager.run_inference()
