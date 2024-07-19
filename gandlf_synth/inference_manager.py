@@ -40,7 +40,9 @@ class InferenceManager:
             global_config (dict): The global configuration dictionary.
             model_config (Type[AbstractModelConfig]): The model configuration class.
             model_dir (str): The directory of the run where the target model is saved.
-            output_dir (str): The directory where the output files will be saved.
+            output_dir (str): The top directory where the output files will be saved. The
+            inference results will be saved in a subdirectory of this directory, with name equal
+            to the model_dir basename.
             device (str, optional): The device to use for inference.
             dataframe_reconstruction (Optional[pd.DataFrame], optional): The dataframe with the data
         to perform reconstruction on. This will be used only for autoencoder-style models.
@@ -49,7 +51,7 @@ class InferenceManager:
         self.global_config = global_config
         self.model_config = model_config
         self.model_dir = model_dir
-        self.output_dir = output_dir
+        self.output_dir = self._prepare_output_directory(output_dir, model_dir)
         self.device = device
         self.dataframe_reconstruction = dataframe_reconstruction
         self._validate_inference_config()
@@ -75,6 +77,41 @@ class InferenceManager:
         self.module.model.eval()
         if self.dataframe_reconstruction is not None:
             self.dataloader = self._prepare_inference_dataloader()
+
+    @staticmethod
+    def _prepare_output_directory(output_dir: str, model_dir: str) -> str:
+        """
+        Prepare the output directory to save inference results. If the directory
+        does not exist, it will be created. If it exists, new directory will be
+        created with a new index.
+        """
+
+        def _prepare_out_dir_path(output_dir: str, model_dir: str) -> str:
+            """
+            Prepare the save path for the inference results by merging the output
+            directory and the model directory name.
+
+            Args:
+                output_dir (str): The output directory.
+                model_dir (str): The model directory name.
+
+            Returns:
+                str: The save path for the inference results.
+            """
+            return os.path.join(output_dir, os.path.basename(model_dir))
+
+        output_dir_path = _prepare_out_dir_path(output_dir, model_dir)
+
+        if not os.path.exists(output_dir_path):
+            os.makedirs(output_dir_path)
+            return output_dir_path
+
+        index = 1
+        while os.path.exists(f"{output_dir_path}_{index}"):
+            index += 1
+        output_dir_path = f"{output_dir_path}_{index}"
+        os.makedirs(output_dir_path)
+        return output_dir_path
 
     def _prepare_inference_dataloader(self) -> DataLoader:
         """
