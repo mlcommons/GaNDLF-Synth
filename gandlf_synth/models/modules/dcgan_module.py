@@ -199,7 +199,6 @@ class UnlabeledDCGANModule(SynthesisModule):
 
     @torch.no_grad
     def inference_step(self, **kwargs) -> torch.Tensor:
-        print("Inference step")
         n_images_to_generate = kwargs.get("n_images_to_generate", None)
         assert (
             n_images_to_generate is not None
