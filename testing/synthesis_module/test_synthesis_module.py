@@ -1,15 +1,10 @@
 import os
-import logging
 import yaml
-import shutil
 import inspect
-
-from datetime import datetime
+import logging
 from pathlib import Path
-from copy import deepcopy
 
 import pandas as pd
-from torchio.transforms import Compose, Resize
 
 from gandlf_synth.config_manager import ConfigManager
 from gandlf_synth.data.datasets_factory import DatasetFactory
@@ -17,9 +12,7 @@ from gandlf_synth.data.dataloaders_factory import DataloaderFactory
 from gandlf_synth.models.modules.module_factory import ModuleFactory
 from gandlf_synth.training_manager import TrainingManager
 from gandlf_synth.inference_manager import InferenceManager
-from typing import List
-
-from typing import List
+from testing.testing_utils import ContextManagerTests
 
 TEST_DIR = Path(__file__).parent.absolute().__str__()
 OUTPUT_DIR = os.path.join(TEST_DIR, "output")
@@ -42,76 +35,6 @@ LOGGER_OBJECT = logging.getLogger("synthesis_module_logger")
 AVAILABLE_MODULES = list(ModuleFactory.AVAILABE_MODULES.keys())
 # Take all available model configs registered
 AVAILABLE_CONFIGS = list(ModuleFactory.AVAILABE_MODULES.keys())
-
-
-def restore_config():
-    """
-    Sanitizing function to restore the original config file after the tests are done, in
-    case it is overwritten.
-    """
-
-    with open(TEST_CONFIG_PATH, "w") as config_file:
-        yaml.dump(ORIGINAL_CONFIG, config_file)
-
-
-class ContextManagerTests:
-    """
-    Context manager ensuring that certain operations are performed before and after the tests.
-    """
-
-    def __init__(self, test_name: str):
-        """
-        Initialize the context manager.
-        """
-        self.test_name = test_name
-
-    def __enter__(self):
-        """
-        Method to be executed before the tests.
-        """
-        pass
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        """
-        Method to be executed after the tests.
-        """
-        if exc_type is not None and exc_type is not KeyboardInterrupt:
-            failed_runs_dir = os.path.join(TEST_DIR, "output_failed")
-            if not os.path.exists(failed_runs_dir):
-                os.mkdir(failed_runs_dir)
-            if os.path.exists(OUTPUT_DIR):
-                shutil.copytree(
-                    OUTPUT_DIR,
-                    os.path.join(
-                        failed_runs_dir,
-                        f"output_failed_{self.test_name}_date_{datetime.now()}",
-                    ),
-                )
-        # Later we may move output dir sanitization here too, and other stuff
-        restore_config()
-        with os.scandir(OUTPUT_DIR) as entries:
-            for entry in entries:
-                if entry.is_dir() and not entry.is_symlink():
-                    shutil.rmtree(entry.path)
-                else:
-                    os.remove(entry.path)
-
-
-def parse_available_module(module_name: str) -> List[str]:
-    """
-    Helper method to parse the module name into its components (labeling paradigm and model name).
-    Used to replace the model name and labeling paradigm in the config file to check all
-    available modules and configs in one go.
-
-    Args:
-        module_name (str): The module name from available modules.
-
-    Returns:
-        labeling_paradigm (str): The labeling paradigm.
-        model_name (str): The model name.
-
-    """
-    return module_name.split("_")
 
 
 def test_module_config_pairs():
@@ -170,7 +93,9 @@ def test_module_config_pairs():
 
 def test_training_manager():
     test_name = inspect.currentframe().f_code.co_name
-    with ContextManagerTests(test_name):
+    with ContextManagerTests(
+        test_dir=TEST_DIR, test_name=test_name, output_dir=OUTPUT_DIR
+    ):
         config_manager = ConfigManager(TEST_CONFIG_PATH)
         global_config, model_config = config_manager.prepare_configs()
         example_dataframe = pd.read_csv(CSV_PATH)
@@ -189,7 +114,9 @@ def test_training_manager():
 
 def test_training_manager_val_test_df():
     test_name = inspect.currentframe().f_code.co_name
-    with ContextManagerTests(test_name):
+    with ContextManagerTests(
+        test_dir=TEST_DIR, test_name=test_name, output_dir=OUTPUT_DIR
+    ):
         config_manager = ConfigManager(TEST_CONFIG_PATH)
         global_config, model_config = config_manager.prepare_configs()
         example_dataframe = pd.read_csv(CSV_PATH)
@@ -211,7 +138,9 @@ def test_training_manager_val_test_df():
 
 def test_training_manager_val_test_ratio():
     test_name = inspect.currentframe().f_code.co_name
-    with ContextManagerTests(test_name):
+    with ContextManagerTests(
+        test_dir=TEST_DIR, test_name=test_name, output_dir=OUTPUT_DIR
+    ):
         config_manager = ConfigManager(TEST_CONFIG_PATH)
         global_config, model_config = config_manager.prepare_configs()
         example_dataframe = pd.read_csv(CSV_PATH)
@@ -233,7 +162,9 @@ def test_training_manager_val_test_ratio():
 
 def test_training_manager_val_test_fallback():
     test_name = inspect.currentframe().f_code.co_name
-    with ContextManagerTests(test_name):
+    with ContextManagerTests(
+        test_dir=TEST_DIR, test_name=test_name, output_dir=OUTPUT_DIR
+    ):
         # Test fallback to dataframes when both provided
         config_manager = ConfigManager(TEST_CONFIG_PATH)
         global_config, model_config = config_manager.prepare_configs()
@@ -256,7 +187,9 @@ def test_training_manager_val_test_fallback():
 
 def test_training_manager_reset_resume():
     test_name = inspect.currentframe().f_code.co_name
-    with ContextManagerTests(test_name):
+    with ContextManagerTests(
+        test_dir=TEST_DIR, test_name=test_name, output_dir=OUTPUT_DIR
+    ):
         config_manager = ConfigManager(TEST_CONFIG_PATH)
         global_config, model_config = config_manager.prepare_configs()
         example_dataframe = pd.read_csv(CSV_PATH)
@@ -297,7 +230,9 @@ def test_training_manager_reset_resume():
 
 def test_inference_manager():
     test_name = inspect.currentframe().f_code.co_name
-    with ContextManagerTests(test_name):
+    with ContextManagerTests(
+        test_dir=TEST_DIR, test_name=test_name, output_dir=OUTPUT_DIR
+    ):
         config_manager = ConfigManager(TEST_CONFIG_PATH)
         global_config, model_config = config_manager.prepare_configs()
         example_dataframe = pd.read_csv(CSV_PATH)

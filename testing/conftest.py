@@ -1,6 +1,8 @@
 import os, pathlib, pytest
 from pytest import fixture
 
+from testing.testing_utils import prerequisites_hook_download_data
+
 
 def pytest_addoption(parser):
     parser.addoption(
@@ -27,3 +29,10 @@ def pytest_runtest_makereport(item, call):
         mode = "a" if os.path.exists(log_filename) else "w"
         with open(log_filename, mode) as f:
             f.write(rep.longreprtext + "\n")
+
+
+def pytest_sessionstart(session):
+    """
+    This hook is executed before the pytest session starts.
+    """
+    prerequisites_hook_download_data()
