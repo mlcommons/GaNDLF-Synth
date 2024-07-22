@@ -4,12 +4,14 @@ import pandas as pd
 
 from gandlf_synth.training_manager import TrainingManager
 from gandlf_synth.config_manager import ConfigManager
+from gandlf_synth.inference_manager import InferenceManager
 
 
+# TODO think if those args names are valid
 def main_run(
     config_path: str,
-    main_data_csv_path: str,
     output_dir: str,
+    main_data_csv_path: Optional[str] = None,
     training: bool = False,
     resume: bool = True,
     reset: bool = False,
@@ -18,16 +20,20 @@ def main_run(
     test_csv_path: Optional[str] = None,
     val_ratio: Optional[float] = None,
     test_ratio: Optional[float] = None,
+    inference_output_dir: Optional[str] = None,
 ):
     """
     Main function to execute training or inference.
 
     Args:
         config_path (str): Path to the configuration file.
+        output_dir (str): Path to the output directory, where data is saved druing training.
+    This directory is also used in inference mode as the source for loading the model files.
         main_data_csv_path (str): Path to the main data CSV file. When in
-    training mode, this file will be used for training. When in inference,
-    this file will be used for inference.
-        output_dir (str): Path to the output directory.
+    training mode, this argument is required as it will be used for training. When in inference,
+    this file will be used for inference (utilized by models performing reconstruction).
+        inference_output_dir (str): Path to the output directory used during inference, where the
+    results of generation/reconstruction will be saved. Defaults to None, must be specified for inference.
         training (bool): Flag to indicate whether to run in training mode.
     Defaults to False.
         resume (bool): Flag to indicate whether to resume training from a
@@ -49,18 +55,24 @@ def main_run(
 
     config_manager = ConfigManager(config_path=config_path)
     global_config, model_config = config_manager.prepare_configs()
-    train_dataframe = pd.read_csv(main_data_csv_path)
+
+    main_input_dataframe = (
+        pd.read_csv(main_data_csv_path) if main_data_csv_path is not None else None
+    )
 
     if training:
+        assert (
+            main_input_dataframe is not None
+        ), "When in training mode, `main_data_csv_path` must be specified!"
         val_dataframe = None
-        test_dataframe = None
         if val_csv_path is not None:
             val_dataframe = pd.read_csv(val_csv_path)
+        test_dataframe = None
         if test_csv_path is not None:
             test_dataframe = pd.read_csv(test_csv_path)
         # Reseting and resuming is handled by managers, so we do not validate it here.
         training_manager = TrainingManager(
-            train_dataframe=train_dataframe,
+            train_dataframe=main_input_dataframe,
             output_dir=output_dir,
             global_config=global_config,
             model_config=model_config,
@@ -75,5 +87,15 @@ def main_run(
         training_manager.run_training()
 
     if not training:
-        print("Inference mode is not implemented yet. Exiting...")
-        pass
+        assert (
+            inference_output_dir is not None
+        ), "`inference_output_dir` must be specified when running in inference mode!"
+        inference_manager = InferenceManager(
+            global_config=global_config,
+            model_config=model_config,
+            model_dir=output_dir,
+            output_dir=inference_output_dir,
+            device=device,
+            dataframe_reconstruction=main_input_dataframe,
+        )
+        inference_manager.run_inference()

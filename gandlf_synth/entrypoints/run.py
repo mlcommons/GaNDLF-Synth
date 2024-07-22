@@ -20,13 +20,13 @@ from gandlf_synth.cli.main_run import main_run
 @click.option(
     "--main-data-csv-path",
     "-dt",
-    required=True,
+    required=False,
     help="Path to the CSV file which contains either the training data or the data to be used for inference.",
     type=click.Path(exists=True, file_okay=True, dir_okay=False),
 )
 @click.option(
     "--model-dir",
-    "-m",
+    "-m-dir",
     required=True,
     help="Path to the output directory where the results will be saved.",
     type=click.Path(file_okay=False, dir_okay=True),
@@ -86,6 +86,13 @@ from gandlf_synth.cli.main_run import main_run
     type=float,
     help="Optional ratio of the test data to use for training. If specified along with test_csv_path, the data from test_csv_path will be used.",
 )
+@click.option(
+    "--inference_output_dir",
+    "-i-dir",
+    required=False,
+    type=str,
+    help="Optional path to the CSV file which contains the validation data used during training.",
+)
 
 # TODO uncomment when new api will come online!
 @append_copyright_to_help
@@ -101,6 +108,7 @@ def run(
     test_csv_path: str,
     val_ratio: float,
     test_ratio: float,
+    inference_output_dir: str,
 ):
     main_run(
         config_path=config,
@@ -114,6 +122,7 @@ def run(
         test_csv_path=test_csv_path,
         val_ratio=val_ratio,
         test_ratio=test_ratio,
+        inference_output_dir=inference_output_dir,
     )
 
 
