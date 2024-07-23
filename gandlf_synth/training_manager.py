@@ -325,7 +325,7 @@ class TrainingManager:
                 for batch_idx, batch in tqdm(
                     enumerate(self.val_dataloader),
                     total=len(self.val_dataloader),
-                    desc=f"Validation epoch {epoch+1}/{self.global_config['num_epochs']}",
+                    desc=f"Validation epoch {epoch}/{self.global_config['num_epochs']}",
                 ):
                     assert_input_correctness(
                         configured_input_shape=self.model_config.tensor_shape,
