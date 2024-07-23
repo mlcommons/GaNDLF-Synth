@@ -30,7 +30,7 @@ class SynthesisModule(ABC):
         model_config: Type[AbstractModelConfig],
         logger: Logger,
         model_dir: str,
-        metric_calculator: Optional[Dict[str,Callable]] = None,
+        metric_calculator: Optional[Dict[str, Callable]] = None,
         postprocessing_transforms: Optional[List[Callable]] = None,
         device: str = "cpu",
     ) -> None:
@@ -58,8 +58,9 @@ class SynthesisModule(ABC):
         self.losses = self._initialize_losses()
         self.schedulers = self._initialize_schedulers()
         # Ensure the objects are placed on the device.
-        self.model = ensure_device_placement(self.model,self.device)
-        self.losses = ensure_device_placement(self.losses,self.device)
+        self.model = ensure_device_placement(self.model, self.device)
+        self.losses = ensure_device_placement(self.losses, self.device)
+
     @abstractmethod
     def training_step(self, batch: object, batch_idx: int) -> torch.Tensor:
         """
@@ -290,7 +291,7 @@ class SynthesisModule(ABC):
         self.logger.info(f"Model loaded from {tar_file_path}")
         self.logger.info(f"GANDLF-Synth version: {metadata_dict['version']}")
         self.logger.info(f"Git hash: {git_hash}")
-        self.logger.info( f"Timestamp: {timestamp}")
+        self.logger.info(f"Timestamp: {timestamp}")
         self.logger.info(f"Timestamp hash: {timestamp_hash}")
 
     def _apply_postprocessing(self, data_to_transform: torch.Tensor) -> torch.Tensor:
@@ -330,8 +331,6 @@ class SynthesisModule(ABC):
         """
         for key, value in dict_to_log.items():
             self._log(10, f"{key}: {value}")
-
-
 
     def _on_train_epoch_start(self, epoch: int) -> None:
         """

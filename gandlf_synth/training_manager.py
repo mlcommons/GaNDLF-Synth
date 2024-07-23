@@ -211,7 +211,9 @@ class TrainingManager:
         Prepare the output directory for the training process.
         """
         if self.reset:
-            self.logger.info(f"Reset flag chosen, erasing {self.output_dir} and training from scratch.")
+            self.logger.info(
+                f"Reset flag chosen, erasing {self.output_dir} and training from scratch."
+            )
             shutil.rmtree(self.output_dir)
 
         if not os.path.exists(self.output_dir):
@@ -293,37 +295,45 @@ class TrainingManager:
             test_dataloader = dataloader_factory.get_testing_dataloader(test_dataset)
 
         return train_dataloader, val_dataloader, test_dataloader
-    
+
     def run_training(self):
         """
         Train the model.
         """
         # CAUTION - keep careful when dealing with multiple batches and split images (slices)
         self.module.save_checkpoint(suffix="_start")
-        
+
         for epoch in range(self.global_config["num_epochs"]):
             self.module._on_train_epoch_start(epoch)
 
-            for batch_idx, batch in tqdm(enumerate(self.train_dataloader), total=len(self.train_dataloader), desc=f"Training epoch {epoch+1}/{self.global_config['num_epochs']}"):
+            for batch_idx, batch in tqdm(
+                enumerate(self.train_dataloader),
+                total=len(self.train_dataloader),
+                desc=f"Training epoch {epoch+1}/{self.global_config['num_epochs']}",
+            ):
                 assert_input_correctness(
                     configured_input_shape=self.model_config.tensor_shape,
                     configured_n_channels=self.model_config.n_channels,
                     batch_idx=batch_idx,
                     batch=batch,
                 )
-                batch = ensure_device_placement(batch,self.device)
+                batch = ensure_device_placement(batch, self.device)
                 self.module.training_step(batch, batch_idx)
             self.module._on_train_epoch_end(epoch)
             if self.val_dataloader is not None:
                 self.module._on_validation_epoch_start(epoch)
-                for batch_idx, batch in tqdm(enumerate(self.val_dataloader), total=len(self.val_dataloader), desc=f"Validation epoch {epoch+1}/{self.global_config['num_epochs']}"):
+                for batch_idx, batch in tqdm(
+                    enumerate(self.val_dataloader),
+                    total=len(self.val_dataloader),
+                    desc=f"Validation epoch {epoch+1}/{self.global_config['num_epochs']}",
+                ):
                     assert_input_correctness(
                         configured_input_shape=self.model_config.tensor_shape,
                         configured_n_channels=self.model_config.n_channels,
                         batch_idx=batch_idx,
                         batch=batch,
                     )
-                    batch = ensure_device_placement(batch,self.device)
+                    batch = ensure_device_placement(batch, self.device)
                     self.module.validation_step(batch, batch_idx)
                 self.module._on_validation_epoch_end(epoch)
             if self.global_config["save_model_every_n_epochs"] != -1 and (
@@ -333,13 +343,17 @@ class TrainingManager:
             self.module.save_checkpoint(suffix="latest")
         if self.test_dataloader is not None:
             self.module._on_test_start()
-            for batch_idx, batch in tqdm(enumerate(self.test_dataloader), total=len(self.test_dataloader), desc="Testing"):
+            for batch_idx, batch in tqdm(
+                enumerate(self.test_dataloader),
+                total=len(self.test_dataloader),
+                desc="Testing",
+            ):
                 assert_input_correctness(
                     configured_input_shape=self.model_config.tensor_shape,
                     configured_n_channels=self.model_config.n_channels,
                     batch_idx=batch_idx,
                     batch=batch,
                 )
-                batch = ensure_device_placement(batch,self.device)
+                batch = ensure_device_placement(batch, self.device)
                 self.module.test_step(batch, batch_idx)
             self.module._on_test_end()

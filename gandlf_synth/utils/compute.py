@@ -59,18 +59,20 @@ def backward_pass(
                 )
 
 
-def ensure_device_placement(data: object, target_device : Union[str, torch.device]) -> object:
+def ensure_device_placement(
+    data: object, target_device: Union[str, torch.device]
+) -> object:
     """
     Ensure the data is placed on the device.
 
     Args:
         data (object): Data to place on the device.
-        target_device (Union[str, torch.device]): A target device to send object to. 
+        target_device (Union[str, torch.device]): A target device to send object to.
     Returns:
         data (object): Data placed on the device.
     """
     if isinstance(data, torch.Tensor) or issubclass(type(data), nn.Module):
-        data =  data.to(target_device)
+        data = data.to(target_device)
     elif isinstance(data, dict):
         for key, value in data.items():
             data[key] = value.to(target_device)
