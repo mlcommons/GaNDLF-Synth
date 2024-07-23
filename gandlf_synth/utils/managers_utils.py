@@ -1,6 +1,5 @@
 import os
-from logging import Logger
-
+import logging
 from torchio.transforms import Compose
 
 from GANDLF.data.augmentation import get_augmentation_transforms
@@ -10,7 +9,7 @@ from gandlf_synth.models.modules.module_abc import SynthesisModule
 from typing import List, Tuple, Callable, Type, Union
 
 
-def prepare_logger(logger_name: str) -> Logger:
+def prepare_logger(logger_name: str) -> logging.Logger:
     """
     Prepare the logger.
 
@@ -20,7 +19,14 @@ def prepare_logger(logger_name: str) -> Logger:
     Returns:
         logging.Logger: The logger.
     """
-    logger = Logger(logger_name)
+    formatter = logging.Formatter(fmt='%(asctime)s - %(levelname)s - %(module)s - %(message)s')
+
+    handler = logging.StreamHandler()
+    handler.setFormatter(formatter)
+
+    logger = logging.getLogger(logger_name)
+    logger.setLevel(logging.INFO)
+    logger.addHandler(handler)
     return logger
 
 
@@ -42,7 +48,7 @@ def prepare_postprocessing_transforms(global_config: dict) -> List[Callable]:
 
 
 def load_model_checkpoint(
-    output_dir: str, synthesis_module: Type[SynthesisModule], manager_logger: Logger
+    output_dir: str, synthesis_module: Type[SynthesisModule], manager_logger: logging.Logger
 ) -> None:
     """
     Resume the training process from a previous checkpoint if `resume` mode is used. This function

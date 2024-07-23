@@ -1,8 +1,10 @@
 import torch
+from torch import nn
+
 from GANDLF.grad_clipping.grad_scaler import GradScaler, model_parameters_exclude_head
 from GANDLF.grad_clipping.clip_gradients import dispatch_clip_grad_
 
-from typing import Optional
+from typing import Optional, Union
 
 
 def backward_pass(
@@ -55,3 +57,21 @@ def backward_pass(
                     value=clip_grad,
                     mode=clip_mode,
                 )
+
+
+def ensure_device_placement(data: object, target_device : Union[str, torch.device]) -> object:
+    """
+    Ensure the data is placed on the device.
+
+    Args:
+        data (object): Data to place on the device.
+        target_device (Union[str, torch.device]): A target device to send object to. 
+    Returns:
+        data (object): Data placed on the device.
+    """
+    if isinstance(data, torch.Tensor) or issubclass(type(data), nn.Module):
+        data =  data.to(target_device)
+    elif isinstance(data, dict):
+        for key, value in data.items():
+            data[key] = value.to(target_device)
+    return data
