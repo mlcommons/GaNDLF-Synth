@@ -22,7 +22,7 @@ from typing import Dict, Union
 
 class UnlabeledDCGANModule(SynthesisModule):
     def training_step(self, batch: object, batch_idx: int) -> torch.Tensor:
-        real_images = self._ensure_device_placement(batch)
+        real_images = batch
         batch_size = real_images.shape[0]
         latent_vector = generate_latent_vector(
             batch_size,
@@ -49,7 +49,6 @@ class UnlabeledDCGANModule(SynthesisModule):
         # DISCRIMINATOR PASS WITH FAKE IMAGES
         label_fake = label_real.fill_(0.0)  # swap the labels for fake images
         fake_images = self.model.generator(latent_vector)
-
         preds_fake = self.model.discriminator(fake_images.detach())
         disc_loss_fake = self.losses["disc_loss"](preds_fake, label_fake)
         backward_pass(
@@ -113,7 +112,7 @@ class UnlabeledDCGANModule(SynthesisModule):
     # TODO does this method even have sense in that form?
     @torch.no_grad
     def validation_step(self, batch: object, batch_idx: int) -> torch.Tensor:
-        real_images = self._ensure_device_placement(batch)
+        real_images = batch
         real_labels = torch.full(
             (real_images.shape[0], 1),
             fill_value=1.0,
@@ -150,7 +149,7 @@ class UnlabeledDCGANModule(SynthesisModule):
     # as the validation step
     @torch.no_grad
     def test_step(self, batch: object, batch_idx: int) -> torch.Tensor:
-        real_images = self._ensure_device_placement(batch)
+        real_images = batch
         real_labels = torch.full(
             (real_images.shape[0], 1),
             fill_value=1.0,
@@ -305,6 +304,8 @@ class UnlabeledDCGANModule(SynthesisModule):
             fixed_images_save_path = os.path.join(
                 self.model_dir, "eval_images", f"epoch_{epoch}"
             )
+            if not os.path.exists(fixed_images_save_path):
+                os.makedirs(fixed_images_save_path)
             last_batch_size = (
                 self.model_config.n_fixed_images_to_generate
                 % self.model_config.fixed_images_batch_size
@@ -317,7 +318,7 @@ class UnlabeledDCGANModule(SynthesisModule):
                 n_batches += 1
             for i in range(n_batches):
                 n_images_to_generate = self.model_config.fixed_images_batch_size
-                if i == n_batches - 1:
+                if (i == n_batches - 1) and last_batch_size > 0:
                     n_images_to_generate = last_batch_size
                 fake_images = self._generate_image_set_from_fixed_vector(
                     n_images_to_generate

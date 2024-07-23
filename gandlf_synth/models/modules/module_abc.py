@@ -14,6 +14,7 @@ from GANDLF.utils.generic import get_git_hash, get_unique_timestamp
 from gandlf_synth.version import __version__
 from gandlf_synth.models.configs.config_abc import AbstractModelConfig
 from gandlf_synth.models.architectures.base_model import ModelBase
+from gandlf_synth.utils.compute import ensure_device_placement
 
 from typing import Dict, Union, Optional, Type, List, Callable
 
@@ -29,7 +30,7 @@ class SynthesisModule(ABC):
         model_config: Type[AbstractModelConfig],
         logger: Logger,
         model_dir: str,
-        metric_calculator: Optional[dict] = None,
+        metric_calculator: Optional[Dict[str,Callable]] = None,
         postprocessing_transforms: Optional[List[Callable]] = None,
         device: str = "cpu",
     ) -> None:
@@ -39,7 +40,7 @@ class SynthesisModule(ABC):
             params (dict): Dictionary of parameters.
             logger (Logger): Logger for logging the values.
             model_dir (str) : Model and results output directory.
-            metric_calculator (object,optional): Metric calculator object.
+            metric_calculator (Dict[str,Callable],optional): Metric calculator object.
             postprocessing_transforms (List[Callable], optional): Postprocessing transformations to apply.
             device (str, optional): Device to perform computations on. Defaults to "cpu".
         """
@@ -57,9 +58,8 @@ class SynthesisModule(ABC):
         self.losses = self._initialize_losses()
         self.schedulers = self._initialize_schedulers()
         # Ensure the objects are placed on the device.
-        self.model = self._ensure_device_placement(self.model)
-        self.losses = self._ensure_device_placement(self.losses)
-
+        self.model = ensure_device_placement(self.model,self.device)
+        self.losses = ensure_device_placement(self.losses,self.device)
     @abstractmethod
     def training_step(self, batch: object, batch_idx: int) -> torch.Tensor:
         """
@@ -287,11 +287,11 @@ class SynthesisModule(ABC):
                         name in schedulers_state_dict.keys()
                     ), f"Scheduler {name} not found in the checkpoint!"
                     scheduler.load_state_dict(schedulers_state_dict[name])
-        self.logger.log(10, f"Model loaded from {tar_file_path}")
-        self.logger.log(10, f"GANDLF-Synth version: {metadata_dict['version']}")
-        self.logger.log(10, f"Git hash: {git_hash}")
-        self.logger.log(10, f"Timestamp: {timestamp}")
-        self.logger.log(10, f"Timestamp hash: {timestamp_hash}")
+        self.logger.info(f"Model loaded from {tar_file_path}")
+        self.logger.info(f"GANDLF-Synth version: {metadata_dict['version']}")
+        self.logger.info(f"Git hash: {git_hash}")
+        self.logger.info( f"Timestamp: {timestamp}")
+        self.logger.info(f"Timestamp hash: {timestamp_hash}")
 
     def _apply_postprocessing(self, data_to_transform: torch.Tensor) -> torch.Tensor:
         """
@@ -319,7 +319,7 @@ class SynthesisModule(ABC):
         # that we used in GaNDLF for logging the values. Maybe we should also wait for Sylwia's
         # port of new logging in main GaDLF. Anyway the logging should be done in the same way
         # for all the modules.
-        self.logger.log(10, f"{value_name}: {value_to_log}")
+        self.logger.info(f"{value_name}: {value_to_log}")
 
     def _log_dict(self, dict_to_log: Dict[str, float]) -> None:
         """
@@ -331,21 +331,7 @@ class SynthesisModule(ABC):
         for key, value in dict_to_log.items():
             self._log(10, f"{key}: {value}")
 
-    def _ensure_device_placement(self, data: object) -> object:
-        """
-        Ensure the data is placed on the device.
 
-        Args:
-            data: Data to place on the device.
-        Returns:
-            data: Data placed on the device.
-        """
-        if isinstance(data, torch.Tensor) or isinstance(data, nn.Module):
-            return data.to(self.device)
-        elif isinstance(data, dict):
-            for key, value in data.items():
-                data[key] = value.to(self.device)
-            return data
 
     def _on_train_epoch_start(self, epoch: int) -> None:
         """
