@@ -11,7 +11,6 @@ from gandlf_synth.models.configs.config_abc import AbstractModelConfig
 from gandlf_synth.models.modules.module_factory import ModuleFactory
 from gandlf_synth.data.datasets_factory import DatasetFactory
 from gandlf_synth.data.dataloaders_factory import DataloaderFactory
-from gandlf_synth.metrics import get_metrics
 from gandlf_synth.utils.managers_utils import (
     prepare_logger,
     prepare_postprocessing_transforms,
@@ -20,6 +19,7 @@ from gandlf_synth.utils.managers_utils import (
     assert_input_correctness,
 )
 from gandlf_synth.utils.compute import ensure_device_placement
+from gandlf_synth.metrics import get_metrics
 
 from typing import Optional, Type
 
@@ -89,9 +89,7 @@ class TrainingManager:
             self.val_dataloader,
             self.test_dataloader,
         ) = self._prepare_dataloaders()
-        metric_calculator = None
-        if self.global_config.get("metrics") is not None:
-            metric_calculator = get_metrics(self.global_config["metrics"])
+        metric_calculator = get_metrics(global_config["metrics"]) if "metrics" in global_config else None
         module_factory = ModuleFactory(
             model_config=self.model_config,
             logger=self.logger,

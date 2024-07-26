@@ -6,7 +6,7 @@ from GANDLF.data.augmentation import get_augmentation_transforms
 from gandlf_synth.data.preprocessing import get_preprocessing_transforms
 from gandlf_synth.data.postprocessing import get_postprocessing_transforms
 from gandlf_synth.models.modules.module_abc import SynthesisModule
-from typing import List, Tuple, Callable, Type, Union
+from typing import List, Tuple, Callable, Type, Union, Callable
 
 
 def prepare_logger(logger_name: str) -> logging.Logger:
@@ -149,3 +149,4 @@ def assert_input_correctness(
     assert (
         batch_image_shape == expected_input_shape
     ), f"Batch {batch_idx} has incorrect shape. Expected: {expected_input_shape}, got: {batch_image_shape}"
+

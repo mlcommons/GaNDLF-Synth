@@ -56,7 +56,7 @@ class InferenceManager:
         self.dataframe_reconstruction = dataframe_reconstruction
         self._validate_inference_config()
         self.logger = prepare_logger(self.LOGGER_NAME)
-        self.metric_calculator = get_metrics(self.global_config["metrics"])
+        self.metric_calculator = get_metrics(global_config["metrics"]) if "metrics" in global_config else None
 
         module_factory = ModuleFactory(
             model_config=self.model_config,
