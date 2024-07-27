@@ -208,7 +208,7 @@ class TrainingManager:
         """
         Prepare the output directory for the training process.
         """
-        if self.reset:
+        if self.reset and os.path.exists(self.output_dir):
             self.logger.info(
                 f"Reset flag chosen, erasing {self.output_dir} and training from scratch."
             )
