@@ -329,4 +329,5 @@ class UnlabeledDCGANModule(SynthesisModule):
                         os.path.join(
                             fixed_images_save_path, f"fake_image_{i*n + n}.png"
                         ),
+                        normalize=True,
                     )
