@@ -53,34 +53,4 @@ class AbstractModelConfig(ABC):
             setattr(self, key, value)
 
 
-# Just an example of configuration class
-class TestModelConfig(AbstractModelConfig):
-    """
-    Test model configuration class.
-    """
 
-    @staticmethod
-    def _validatie_params(model_config: dict) -> None:
-        """
-        This method checks if the input model configuration is valid by
-        checking if the required keys are present in the dictionary.
-        Args:
-            model_config (dict): The model configuration dictionary.
-        """
-        assert "test_key" in model_config, "test_key not found in model configuration."
-
-    def _set_default_params(self, model_config: dict) -> dict:
-        """
-        This method sets the default parameters for the model configuration
-        if the user has not provided any.
-        """
-        if "test_key_opt" not in model_config:
-            model_config["test_key_opt"] = "test_value_inserted_by_default"
-        return model_config
-
-
-if __name__ == "__main__":
-    test_dict = {"test_key": "test_value"}
-    test_model_config = TestModelConfig(test_dict)
-    print(test_model_config.test_key)
-    print(test_model_config.test_key_opt)
