@@ -215,12 +215,12 @@ class InferenceManager:
             generated_images = self.module.inference_step(**inference_step_kwargs)
             # saving
             if self.model_config.n_dimensions == 2:
-                generated_images = generated_images.permute(0, 2, 3, 1)
-                generated_images = generated_images.numpy().astype(np.uint8)
+                generated_images = generated_images.cpu()#.permute(0, 2, 3, 1).cpu()#.numpy().astype(np.uint8)
             elif self.model_config.n_dimensions == 3:
-                generated_images = generated_images.permute(0, 2, 3, 4, 1)
+                generated_images = generated_images.permute(0, 2, 3, 4, 1).cpu().numpy().astype(np.uint8)
             # TODO can we make it distributed? Would be much faster
             for j, generated_image in enumerate(generated_images):
+                print(generated_image.min(), generated_image.max())
                 image_path = os.path.join(
                     self.output_dir, f"generated_image_{i * batch_size + j}"
                 )
@@ -263,7 +263,7 @@ class InferenceManager:
                 # saving
                 if self.model_config.n_dimensions == 2:
                     generated_images = generated_images.permute(0, 2, 3, 1)
-                    generated_images = generated_images.numpy().astype(np.uint8)
+                    generated_images = generated_images.cpu().numpy().astype(np.uint8)
                 elif self.model_config.n_dimensions == 3:
                     generated_images = generated_images.permute(0, 2, 3, 4, 1)
                 for j, generated_image in enumerate(generated_images):
@@ -284,6 +284,7 @@ class InferenceManager:
         """
         self.logger.info("Starting inference.")
         inference_config = self.global_config["inference_parameters"]
+        # TODO think about some strategy pattern here
         if self.model_config.labeling_paradigm == "unlabeled":
             self._unlabeled_inference(inference_config)
         else:
