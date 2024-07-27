@@ -48,7 +48,7 @@ def prepare_postprocessing_transforms(global_config: dict) -> List[Callable]:
         postprocessing_transforms = get_postprocessing_transforms(postprocessing_config)
     return postprocessing_transforms
 
-
+#TODO can we do it in less hardcoded way?
 def load_model_checkpoint(
     output_dir: str,
     synthesis_module: Type[SynthesisModule],
@@ -65,10 +65,10 @@ def load_model_checkpoint(
     """
 
     initial_model_path = os.path.exists(
-        os.path.join(output_dir, "model_initial.tar.gz")
+        os.path.join(output_dir, "model-initial.tar.gz")
     )
     latest_model_path_exists = os.path.exists(
-        os.path.join(output_dir, "model_latest.tar.gz")
+        os.path.join(output_dir, "model-latest.tar.gz")
     )
     if latest_model_path_exists:
         manager_logger.info("Resuming training from the latest checkpoint.")

@@ -231,7 +231,7 @@ class SynthesisModule(ABC):
             "schedulers_state_dict": schedulers_state_dict,
         }
         state_dict_io = io.BytesIO()
-        torch_object_filename = "model_" + suffix.strip("_") + ".pt"
+        torch_object_filename = "model-" + suffix.strip("_") + ".pt"
         tarfile_object_filename = torch_object_filename.split(".")[0] + ".tar.gz"
         tarfile_object_path = os.path.join(self.model_dir, tarfile_object_filename)
         torch.save(metadata_dict, state_dict_io)
@@ -263,8 +263,7 @@ class SynthesisModule(ABC):
             "version": "cpu",
             "git_hash": "cpu",
         }
-
-        tar_file_path = os.path.join(self.model_dir, "model_" + suffix + ".tar.gz")
+        tar_file_path = os.path.join(self.model_dir, "model-" + suffix + ".tar.gz")
         torch_object_path = os.path.basename(tar_file_path).split(".")[0] + ".pt"
         with tarfile.open(tar_file_path, "r:gz") as archive:
             metadata_dict = torch.load(
