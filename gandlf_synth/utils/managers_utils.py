@@ -5,8 +5,7 @@ from torchio.transforms import Compose
 from GANDLF.data.augmentation import get_augmentation_transforms
 from gandlf_synth.data.preprocessing import get_preprocessing_transforms
 from gandlf_synth.data.postprocessing import get_postprocessing_transforms
-from gandlf_synth.models.modules.module_abc import SynthesisModule
-from typing import List, Tuple, Callable, Type, Union, Callable
+from typing import List, Tuple, Callable, Optional, Union, Callable
 
 
 def prepare_logger(logger_name: str) -> logging.Logger:
@@ -47,40 +46,6 @@ def prepare_postprocessing_transforms(global_config: dict) -> List[Callable]:
     if postprocessing_config is not None:
         postprocessing_transforms = get_postprocessing_transforms(postprocessing_config)
     return postprocessing_transforms
-
-#TODO can we do it in less hardcoded way?
-def load_model_checkpoint(
-    output_dir: str,
-    synthesis_module: Type[SynthesisModule],
-    manager_logger: logging.Logger,
-) -> None:
-    """
-    Resume the training process from a previous checkpoint if `resume` mode is used. This function
-    establishes which model checkpoint to load and loads it.
-
-    Args:
-        output_dir (str): The output directory for the model.
-        synthesis_module (SynthesisModule): The synthesis module for which the training is being resumed.
-        manager_logger (Logger): The logger for the manager.
-    """
-
-    initial_model_path = os.path.exists(
-        os.path.join(output_dir, "model-initial.tar.gz")
-    )
-    latest_model_path_exists = os.path.exists(
-        os.path.join(output_dir, "model-latest.tar.gz")
-    )
-    if latest_model_path_exists:
-        manager_logger.info("Resuming training from the latest checkpoint.")
-        synthesis_module.load_checkpoint(suffix="latest")
-    elif initial_model_path:
-        manager_logger.info("Resuming training from the initial checkpoint.")
-        synthesis_module.load_checkpoint(suffix="initial")
-    else:
-        manager_logger.info(
-            "No model checkpoint found in the model directory, training from scratch."
-        )
-
 
 def prepare_transforms(
     preprocessing_config: Union[dict, None],

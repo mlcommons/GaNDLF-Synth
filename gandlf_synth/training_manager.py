@@ -14,7 +14,6 @@ from gandlf_synth.data.dataloaders_factory import DataloaderFactory
 from gandlf_synth.utils.managers_utils import (
     prepare_logger,
     prepare_postprocessing_transforms,
-    load_model_checkpoint,
     prepare_transforms,
     assert_input_correctness,
 )
@@ -44,6 +43,7 @@ class TrainingManager:
         test_dataframe: Optional[pd.DataFrame] = None,
         val_ratio: Optional[float] = 0,
         test_ratio: Optional[float] = 0,
+        custom_checkpoint_suffix: Optional[str] = None,
     ):
         """
         Initialize the TrainingManager.
@@ -64,6 +64,8 @@ class TrainingManager:
         remaining data will be split into training and validation data. Defaults to 0.
             test_ratio (float, optional): The percentage of data to be used for testing,
         extracted from the training dataframe. This parameter will be used if test_dataframe is None. Defaults to 0.
+            custom_checkpoint_suffix (str, optional): The custom suffix to resume training from a specific checkpoint.
+        Used only if resume is True. Defaults to None.
         """
 
         self.train_dataframe = train_dataframe
@@ -90,6 +92,7 @@ class TrainingManager:
             self.test_dataloader,
         ) = self._prepare_dataloaders()
         metric_calculator = get_metrics(global_config["metrics"]) if "metrics" in global_config else None
+        # TODO move it to the main_run function, as well as logger initialization
         module_factory = ModuleFactory(
             model_config=self.model_config,
             logger=self.logger,
@@ -102,11 +105,7 @@ class TrainingManager:
         )
         self.module = module_factory.get_module()
         if self.resume:
-            load_model_checkpoint(
-                output_dir=self.output_dir,
-                synthesis_module=self.module,
-                manager_logger=self.logger,
-            )
+            self.module.load_checkpoint(custom_checkpoint_suffix)
 
     def _warn_user(self):
         """
@@ -337,8 +336,8 @@ class TrainingManager:
             if self.global_config["save_model_every_n_epochs"] != -1 and (
                 epoch % self.global_config["save_model_every_n_epochs"] == 0
             ):
-                self.module.save_checkpoint(suffix=f"epoch_{epoch}")
-            self.module.save_checkpoint(suffix="latest")
+                self.module.save_checkpoint(suffix=f"epoch-{epoch}")
+            self.module.save_checkpoint(suffix=f"latest")
         if self.test_dataloader is not None:
             self.module._on_test_start()
             for batch_idx, batch in tqdm(

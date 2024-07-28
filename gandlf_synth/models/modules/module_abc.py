@@ -253,7 +253,42 @@ class SynthesisModule(ABC):
         used mostly for versioning.
 
         """
+        def _determine_checkpoint_to_load(
+            output_dir: str,
+        ) -> Union[str, None]:
+            """
+            Based on the present checkpoints, determine which checkpoint to load.
+            If a custom suffix is provided, it will be used to load the checkpoint.
+            Args:
+                output_dir (str): The output directory for the model.
+            Returns:
+                suffix (Union[str,None]): The suffix of the checkpoint to load if any.
+            """
+            best_model_path_exists = os.path.exists(
+                os.path.join(output_dir, "model-best.tar.gz")
+            )
+            latest_model_path_exists = os.path.exists(
+                os.path.join(output_dir, "model-latest.tar.gz")
+            )
+            initial_model_path_exists = os.path.exists(
+                os.path.join(output_dir, "model-initial.tar.gz")
+            )
+            suffix = None
+            if best_model_path_exists:
+                suffix = "best"
+            elif latest_model_path_exists:
+                suffix = "latest"
+            elif initial_model_path_exists:
+                suffix = "initial"
+            return suffix
 
+        if suffix is None:
+            suffix = _determine_checkpoint_to_load(self.model_dir)
+        if suffix is None:
+            self.logger.info(
+                "No checkpoint found in the model directory. Skipping loading the model."
+            )
+            return
         MAP_LOCATION_DICT = {
             "state_dict": self.device,
             "optimizers_state_dict": "cpu",

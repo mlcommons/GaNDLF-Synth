@@ -11,7 +11,6 @@ from gandlf_synth.metrics import get_metrics
 from gandlf_synth.utils.managers_utils import (
     prepare_logger,
     prepare_postprocessing_transforms,
-    load_model_checkpoint,
     prepare_transforms,
     assert_input_correctness,
 )
@@ -33,6 +32,7 @@ class InferenceManager:
         output_dir: str,
         device: str,
         dataframe_reconstruction: Optional[pd.DataFrame] = None,
+        custom_checkpoint_suffix: Optional[str] = None,
     ) -> None:
         """Initialize the InferenceManager.
 
@@ -46,6 +46,8 @@ class InferenceManager:
             device (str, optional): The device to use for inference.
             dataframe_reconstruction (Optional[pd.DataFrame], optional): The dataframe with the data
         to perform reconstruction on. This will be used only for autoencoder-style models.
+            custom_checkpoint_suffix (Optional[str], optional): The custom suffix for the checkpoint,
+        mostly used when the model is to be loaded from specific epoch checkpoint.
         """
 
         self.global_config = global_config
@@ -68,11 +70,7 @@ class InferenceManager:
             ),
         )
         self.module = module_factory.get_module()
-        load_model_checkpoint(
-            output_dir=self.model_dir,
-            synthesis_module=self.module,
-            manager_logger=self.logger,
-        )
+        self.module.load_checkpoint(custom_checkpoint_suffix)
         # ensure model in eval mode
         self.module.model.eval()
         if self.dataframe_reconstruction is not None:
@@ -220,7 +218,6 @@ class InferenceManager:
                 generated_images = generated_images.permute(0, 2, 3, 4, 1).cpu().numpy().astype(np.uint8)
             # TODO can we make it distributed? Would be much faster
             for j, generated_image in enumerate(generated_images):
-                print(generated_image.min(), generated_image.max())
                 image_path = os.path.join(
                     self.output_dir, f"generated_image_{i * batch_size + j}"
                 )

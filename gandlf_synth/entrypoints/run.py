@@ -93,6 +93,13 @@ from gandlf_synth.cli.main_run import main_run
     type=str,
     help="Optional path to the CSV file which contains the validation data used during training.",
 )
+@click.option(
+    "--custom_checkpoint_suffix",
+    "-ccs",
+    required=False,
+    type=str,
+    help="Optional suffix to specify from which checkpoint to resume training or to use for inference. In training, it takes action only if --resume is set.",
+)
 
 # TODO uncomment when new api will come online!
 @append_copyright_to_help
@@ -109,6 +116,7 @@ def run(
     val_ratio: float,
     test_ratio: float,
     inference_output_dir: str,
+    custom_checkpoint_suffix: str,
 ):
     main_run(
         config_path=config,
@@ -123,6 +131,7 @@ def run(
         val_ratio=val_ratio,
         test_ratio=test_ratio,
         inference_output_dir=inference_output_dir,
+        custom_checkpoint_suffix=custom_checkpoint_suffix,
     )
 
 
