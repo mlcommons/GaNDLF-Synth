@@ -207,6 +207,8 @@ class UnlabeledDCGANModule(SynthesisModule):
         if self.postprocessing_transforms is not None:
             for transform in self.postprocessing_transforms:
                 fake_images = transform(fake_images)
+        # DCGAN will produce images in the range [-1, 1], we need to normalize them to [0, 1]
+        fake_images = (fake_images + 1) / 2
         return fake_images
 
     def forward(self, **kwargs) -> torch.Tensor:

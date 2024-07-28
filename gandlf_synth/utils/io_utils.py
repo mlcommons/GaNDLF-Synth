@@ -1,4 +1,3 @@
-import torch
 import numpy as np
 import SimpleITK as sitk
 
@@ -20,7 +19,6 @@ def save_single_image(
     """
     extension = EXTENSION_MAP[modality]
     image_path = image_path + extension
-    image_copied = image.copy().squeeze()
     is_vector = dimensionality == 2
-    sitk_image = sitk.GetImageFromArray(image_copied, isVector=is_vector)
+    sitk_image = sitk.GetImageFromArray(image.squeeze(), isVector=is_vector)
     sitk.WriteImage(sitk_image, image_path)
