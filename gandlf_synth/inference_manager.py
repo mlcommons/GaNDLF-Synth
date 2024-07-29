@@ -1,6 +1,8 @@
 import os
 import numpy as np
 import pandas as pd
+
+import torch
 from torch.utils.data import DataLoader
 
 from gandlf_synth.models.configs.config_abc import AbstractModelConfig
@@ -58,7 +60,11 @@ class InferenceManager:
         self.dataframe_reconstruction = dataframe_reconstruction
         self._validate_inference_config()
         self.logger = prepare_logger(self.LOGGER_NAME)
-        self.metric_calculator = get_metrics(global_config["metrics"]) if "metrics" in global_config else None
+        self.metric_calculator = (
+            get_metrics(global_config["metrics"])
+            if "metrics" in global_config
+            else None
+        )
 
         module_factory = ModuleFactory(
             model_config=self.model_config,
@@ -187,6 +193,23 @@ class InferenceManager:
             n_batches += 1
         return n_batches, remainder
 
+    def _prepare_images_for_saving(self, generated_images: torch.Tensor) -> np.ndarray:
+        """
+        Prepare the generated images for saving.
+
+        Args:
+            generated_images (torch.Tensor): The generated images.
+
+        Returns:
+            np.ndarray: The generated images prepared for saving.
+        """
+        if self.model_config.n_dimensions == 2:
+            generated_images = generated_images.permute(0, 2, 3, 1)
+        elif self.model_config.n_dimensions == 3:
+            generated_images = generated_images.permute(0, 2, 3, 4, 1)
+
+        return generated_images.cpu().numpy()
+
     def _unlabeled_inference(self, inference_config: dict):
         """
         Perform inference on the unlabeled data.
@@ -211,11 +234,7 @@ class InferenceManager:
                 n_images_batch = remainder
             inference_step_kwargs = {"n_images_to_generate": n_images_batch}
             generated_images = self.module.inference_step(**inference_step_kwargs)
-            # saving
-            if self.model_config.n_dimensions == 2:
-                generated_images = generated_images.cpu()#.permute(0, 2, 3, 1).cpu()#.numpy().astype(np.uint8)
-            elif self.model_config.n_dimensions == 3:
-                generated_images = generated_images.permute(0, 2, 3, 4, 1).cpu().numpy().astype(np.uint8)
+            generated_images = self._prepare_images_for_saving(generated_images)
             # TODO can we make it distributed? Would be much faster
             for j, generated_image in enumerate(generated_images):
                 image_path = os.path.join(
@@ -257,12 +276,7 @@ class InferenceManager:
                     "class_label": class_label,
                 }
                 generated_images = self.module.inference_step(**inference_step_kwargs)
-                # saving
-                if self.model_config.n_dimensions == 2:
-                    generated_images = generated_images.permute(0, 2, 3, 1)
-                    generated_images = generated_images.cpu().numpy().astype(np.uint8)
-                elif self.model_config.n_dimensions == 3:
-                    generated_images = generated_images.permute(0, 2, 3, 4, 1)
+                generated_images = self._prepare_images_for_saving(generated_images)
                 for j, generated_image in enumerate(generated_images):
                     image_path = os.path.join(
                         self.output_dir,
