@@ -1,11 +1,13 @@
-from copy import deepcopy
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from collections.abc import Sequence
 
-from typing import Type, Union, List, Tuple
+from generative.networks.layers.vector_quantizer import VectorQuantizer, EMAQuantizer
+from gandlf_synth.models.architectures.base_model import ModelBase
+from gandlf_synth.models.configs.config_abc import AbstractModelConfig
 
+from typing import Type, Union, List, Tuple
 
 class _ResidualBlockVQVAE(nn.Module):
     """
@@ -203,7 +205,64 @@ class _DecoderVQVAE(nn.Module):
         for block in self.decoder_blocks:
             x = block(x)
         return x
+
+
+class VQVAE(ModelBase):
+
+    def __init__(self, model_config: Type[AbstractModelConfig]) -> None:
+        ModelBase.__init__(self, model_config)
+
+        self.encoder = _EncoderVQVAE(
+            in_channels=self.n_channels,
+            out_channels=model_config.architecture["embedding_dim"],
+            num_channels_downsample_layers=model_config.architecture["num_channels_upsample_downsample_layers"],
+            num_residual_layers=model_config.architecture["num_residual_layers"],
+            num_residual_channels=model_config.architecture["num_residual_channels"],
+            downsample_conv_parameters=model_config.architecture["downsample_conv_parameters"],
+            dropout_prob=model_config.architecture["dropout"],
+            dropout=self.Dropout,
+            conv=self.Conv,
+        )
+        reversed_num_channels_upsample_downsample_layers = list(reversed(model_config.architecture["num_channels_upsample_downsample_layers"]))
+        reversed_num_residual_channels = list(reversed(model_config.architecture["num_residual_channels"]))
+
+        self.decoder = _DecoderVQVAE(
+            in_channels=model_config.architecture["embedding_dim"],
+            out_channels=self.n_channels,
+            num_channels_upsample_layers=reversed_num_channels_upsample_downsample_layers,
+            num_residual_layers=model_config.architecture["num_residual_layers"],
+            num_residual_channels=reversed_num_residual_channels,
+            upsample_conv_parameters=model_config.architecture["upsample_conv_parameters"],
+            dropout_prob=model_config.architecture["dropout"],
+            dropout=self.Dropout,
+            conv=self.ConvTranspose,
+        )
+        # I on purpose ommited the embedding_init parameter here
+        self.quantizer = VectorQuantizer(
+            EMAQuantizer(
+                spatial_dims=self.n_dimensions,
+                num_embeddings=model_config.architecture["num_embeddings"],
+                embedding_dim=model_config.architecture["embedding_dim"],
+                commitment_cost=model_config.architecture["loss_scaling_commitment_cost"],
+                decay=model_config.architecture["loss_scaling_decay"],
+                epsilon=model_config.architecture["epsilon"],
+                ddp_sync=True
+            )
+        )
+    def encode(self, x: torch.Tensor) -> torch.Tensor:
+        return self.encoder(x)
     
+    def quantize(self, x: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
+        quantization_loss, quantized = self.quantizer(x)
+        return quantized, quantization_loss
+    def decode(self, quantized_encodings: torch.Tensor) -> torch.Tensor:
+        return self.decoder(quantized_encodings)
+    def forward(self, x: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
+        x = self.encode(x)
+        quantized, quantization_loss = self.quantize(x)
+        x_recon = self.decode(quantized)
+        return x_recon, quantization_loss
+
 if __name__ == "__main__":
     # Test the encoder
     spatial_dims = int
