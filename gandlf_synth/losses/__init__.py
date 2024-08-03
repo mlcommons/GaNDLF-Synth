@@ -1,8 +1,8 @@
 from copy import deepcopy
 from torch.nn import Module
-from .generic import CEL, BCELogits, CE
+from .generic import CEL, BCELogits, CE, MSE
 
-global_losses_dict = {"CEL": CEL, "BCELogits": BCELogits, "CE": CE}
+global_losses_dict = {"cel": CEL, "bcelogits": BCELogits, "ce": CE, "mse": MSE}
 
 
 def get_loss(loss_params: dict) -> Module:
@@ -18,7 +18,7 @@ def get_loss(loss_params: dict) -> Module:
     """
     # Retrieve the loss function type from the input parameters
     loss_params_copy = deepcopy(loss_params)
-    loss_type = loss_params_copy["name"]
+    loss_type = loss_params_copy["name"].lower()
     loss_params_copy.pop("name")
     assert (
         loss_type in global_losses_dict
