@@ -1,6 +1,6 @@
 import torch
 import torch.nn.functional as F
-from torch.nn import CrossEntropyLoss, BCEWithLogitsLoss, BCELoss, Module
+from torch.nn import MSELoss, CrossEntropyLoss, BCEWithLogitsLoss, BCELoss, Module
 
 from typing import Optional
 
@@ -65,3 +65,17 @@ def CEL(loss_params: dict) -> Module:
     """
     weights = get_weights(loss_params)
     return CrossEntropyLoss(weight=weights, **loss_params)
+
+
+def MSE(loss_params: dict) -> Module:
+    """
+    Mean squared error loss.
+
+    Args:
+        loss_params (dict): Dictionary containing the loss parameters.
+
+    Returns:
+        torch.Tensor: Mean squared error loss tensor.
+    """
+
+    return MSELoss(**loss_params)

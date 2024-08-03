@@ -1,3 +1,5 @@
+from warnings import warn
+from copy import deepcopy
 from abc import ABC, abstractmethod
 
 
@@ -10,9 +12,12 @@ class AbstractModelConfig(ABC):
 
     def __init__(self, model_config: dict) -> None:
         super().__init__()
-        self._validatie_params(model_config)
-        config = self._set_default_params(model_config)
+        self.model_specifc_default_params = self._prepare_default_model_params()
+        self.architecture_default_params = self._prepare_default_architecture_params()
+        config = deepcopy(model_config)
+        config = self._set_default_params(config)
         config = self._set_default_architecture_params(config)
+        self._validatie_params(config)
         self._create_properites_from_config(config)
 
     @staticmethod
@@ -26,21 +31,45 @@ class AbstractModelConfig(ABC):
         """
         pass
 
+    @staticmethod
     @abstractmethod
-    def _set_default_params(self, model_config: dict) -> dict:
+    def _prepare_default_model_params() -> dict:
         """
-        This method sets the default parameters for the model configuration
-        if the user has not provided any.
+        This method prepares the default model parameters for the model configuration.
         """
         pass
 
+    @staticmethod
     @abstractmethod
+    def _prepare_default_architecture_params() -> dict:
+        """
+        This method prepares the default architecture parameters for the model configuration.
+        """
+        pass
+
+    def _set_default_params(self, model_config: dict) -> dict:
+        for key, value in self.model_specifc_default_params.items():
+            if key not in model_config:
+                model_config[key] = value
+                warn(
+                    f"Parameter {key} not found in the `model_config`. Setting value to default: {value}.",
+                    UserWarning,
+                )
+        return model_config
+
     def _set_default_architecture_params(self, model_config: dict) -> dict:
         """
         This method sets the default architecture parameters for the model configuration
         if the user has not provided any.
         """
-        pass
+        for key, value in self.architecture_default_params.items():
+            if key not in model_config["architecture"]:
+                model_config["architecture"][key] = value
+                warn(
+                    f"Parameter {key} not found in the `architecture` field of `model_config`. Setting value to default: {value}.",
+                    UserWarning,
+                )
+        return model_config
 
     def _create_properites_from_config(self, model_config: dict) -> None:
         """
@@ -51,6 +80,3 @@ class AbstractModelConfig(ABC):
         """
         for key, value in model_config.items():
             setattr(self, key, value)
-
-
-

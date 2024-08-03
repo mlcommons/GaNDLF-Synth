@@ -7,11 +7,14 @@ data_preprocessing:
     - 128
     - 128
   train:
-    rescale: null
     resize:
     - 128
     - 128
   val:
+    resize:
+    - 128
+    - 128
+  inference:
     resize:
     - 128
     - 128
@@ -37,39 +40,18 @@ dataloader_config:
     pin_memory: false
     shuffle: false
 in_memory: false
-inference_parameters:
-  batch_size: 1
-  n_images_to_generate: 10
-metrics:
-- ncc_min
 modality: rad
 model_config:
   amp: false
-  architecture:
-    latent_vector_size: 100
   converter_type: soft
-  input_shape:
-  - 128
-  - 128
   labeling_paradigm: unlabeled
   losses:
-    discriminator:
-      name: BCELogits
-    generator:
-      name: BCELogits
-  model_name: dcgan
+    name: mse
+  model_name: vqvae
   n_channels: 2
   n_dimensions: 2
   norm_type: batch
   optimizers:
-    discriminator:
-      betas:
-      - 0.5
-      - 0.999
-      lr: 0.0002
-      name: adam
-      weight_decay: 0.0
-    generator:
       betas:
       - 0.5
       - 0.999

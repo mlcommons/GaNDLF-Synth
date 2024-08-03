@@ -47,6 +47,7 @@ class ModelBase(nn.Module):
             2,
             3,
         ], f"Only 2D and 3D models are supported, but requested {self.n_dimensions}D."
+        self.Norm = self.get_norm_type(self.norm_type.lower(), self.n_dimensions)
         if self.n_dimensions == 2:
             self.Conv = nn.Conv2d
             self.ConvTranspose = nn.ConvTranspose2d
@@ -58,7 +59,6 @@ class ModelBase(nn.Module):
             self.AdaptiveAvgPool = nn.AdaptiveAvgPool2d
             self.AdaptiveMaxPool = nn.AdaptiveMaxPool2d
             self.GlobalAvgPool = GlobalAveragePooling2D
-            self.Norm = self.get_norm_type(self.norm_type.lower(), self.n_dimensions)
             self.converter = None
 
         elif self.n_dimensions == 3:
@@ -72,8 +72,6 @@ class ModelBase(nn.Module):
             self.AdaptiveAvgPool = nn.AdaptiveAvgPool3d
             self.AdaptiveMaxPool = nn.AdaptiveMaxPool3d
             self.GlobalAvgPool = GlobalAveragePooling3D
-            self.Norm = self.get_norm_type(self.norm_type.lower(), self.n_dimensions)
-
             # define 2d to 3d model converters
             converter_type = model_config.converter_type.lower()
 

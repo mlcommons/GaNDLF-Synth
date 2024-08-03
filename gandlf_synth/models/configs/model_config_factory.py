@@ -1,11 +1,14 @@
 from gandlf_synth.models.configs.config_abc import AbstractModelConfig
 from gandlf_synth.models.configs.dcgan_config import UnlabeledDCGANConfig
-
+from gandlf_synth.models.configs.vqvae_config import VQVAEConfig
 from typing import Type
 
 
 class ModelConfigFactory:
-    AVAILABLE_MODEL_CONFIGS = {"unlabeled_dcgan": UnlabeledDCGANConfig}
+    AVAILABLE_MODEL_CONFIGS = {
+        "unlabeled_dcgan": UnlabeledDCGANConfig,
+        "unlabeled_vqvae": VQVAEConfig,
+    }
 
     @staticmethod
     def _parse_config_name(parameters: dict) -> str:

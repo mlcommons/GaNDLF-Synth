@@ -1,10 +1,11 @@
+import warnings
 import torch
 from torch import nn
 
 from GANDLF.grad_clipping.grad_scaler import GradScaler, model_parameters_exclude_head
 from GANDLF.grad_clipping.clip_gradients import dispatch_clip_grad_
 
-from typing import Optional, Union
+from typing import Optional, Union, List, Sequence
 
 
 def backward_pass(
@@ -57,6 +58,46 @@ def backward_pass(
                     value=clip_grad,
                     mode=clip_mode,
                 )
+
+
+def perform_parameter_update(
+    loss: Union[torch.Tensor, Sequence[torch.Tensor]],
+    optimizer: torch.optim.Optimizer,
+    batch_idx: int,
+) -> Union[torch.Tensor, None]:
+    """
+    Perform parameter update for the model.
+
+    Args:
+        loss (Union[torch.Tensor, Sequence[torch.Tensor]]): The loss to backpropagate. If an Iterable, the losses are summed.
+        optimizer (torch.optim.Optimizer): The optimizer to use for backpropagation.
+        batch_idx (int): The batch index.
+
+    Returns:
+        torch.Tensor: The loss value. If the loss is NaN, returns None.
+    If the input was indeed sequence of losses, the function will return the sum of the losses.
+    """
+
+    assert isinstance(
+        loss, (torch.Tensor, Sequence)
+    ), "loss should be a torch.Tensor or a Sequence of torch.Tensor"
+    if isinstance(loss, Sequence):
+        is_any_nan = any(torch.isnan(l) for l in loss)
+        if not is_any_nan:
+            loss = sum(loss)
+    elif isinstance(loss, torch.Tensor):
+        is_any_nan = torch.isnan(loss)
+
+    if is_any_nan:
+        warnings.warn(
+            f"NaN loss detected in discriminator step for batch {batch_idx}, the step will be skipped",
+            RuntimeWarning,
+        )
+        return
+    optimizer.zero_grad(set_to_none=True)
+    optimizer.step()
+    optimizer.zero_grad(set_to_none=True)
+    return loss
 
 
 def ensure_device_placement(
