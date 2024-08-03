@@ -253,9 +253,8 @@ class SynthesisModule(ABC):
         used mostly for versioning.
 
         """
-        def _determine_checkpoint_to_load(
-            output_dir: str,
-        ) -> Union[str, None]:
+
+        def _determine_checkpoint_to_load(output_dir: str) -> Union[str, None]:
             """
             Based on the present checkpoints, determine which checkpoint to load.
             If a custom suffix is provided, it will be used to load the checkpoint.
@@ -309,19 +308,25 @@ class SynthesisModule(ABC):
         git_hash = metadata_dict["git_hash"]
         optimizers_state_dict = metadata_dict["optimizers_state_dict"]
         self.model.load_state_dict(state_dict=metadata_dict["state_dict"])
-        for name, optimizer in self.optimizers.items():
-            assert (
-                name in optimizers_state_dict.keys()
-            ), f"Optimizer {name} not found in the checkpoint!"
-            optimizer.load_state_dict(optimizers_state_dict[name])
+        if isinstance(self.optimizers, optim.Optimizer):
+            self.optimizers.load_state_dict(optimizers_state_dict)
+        else:
+            for name, optimizer in self.optimizers.items():
+                assert (
+                    name in optimizers_state_dict.keys()
+                ), f"Optimizer {name} not found in the checkpoint!"
+                optimizer.load_state_dict(optimizers_state_dict[name])
         if self.schedulers is not None:
             schedulers_state_dict = metadata_dict["schedulers_state_dict"]
             if schedulers_state_dict is not None:
-                for name, scheduler in self.schedulers.items():
-                    assert (
-                        name in schedulers_state_dict.keys()
-                    ), f"Scheduler {name} not found in the checkpoint!"
-                    scheduler.load_state_dict(schedulers_state_dict[name])
+                if isinstance(self.schedulers, optim.lr_scheduler._LRScheduler):
+                    self.schedulers.load_state_dict(schedulers_state_dict)
+                else:
+                    for name, scheduler in self.schedulers.items():
+                        assert (
+                            name in schedulers_state_dict.keys()
+                        ), f"Scheduler {name} not found in the checkpoint!"
+                        scheduler.load_state_dict(schedulers_state_dict[name])
         self.logger.info(f"Model loaded from {tar_file_path}")
         self.logger.info(f"GANDLF-Synth version: {metadata_dict['version']}")
         self.logger.info(f"Git hash: {git_hash}")

@@ -101,6 +101,6 @@ def main_run(
             output_dir=inference_output_dir,
             device=device,
             dataframe_reconstruction=main_input_dataframe,
-            custom_checkpoint_suffix=custom_checkpoint_suffix
+            custom_checkpoint_suffix=custom_checkpoint_suffix,
         )
         inference_manager.run_inference()

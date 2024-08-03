@@ -1,5 +1,4 @@
 import os
-import warnings
 
 import torch
 from torch import nn
@@ -8,7 +7,7 @@ from torchvision.utils import save_image
 from gandlf_synth.models.architectures.base_model import ModelBase
 from gandlf_synth.models.architectures.dcgan import DCGAN
 from gandlf_synth.models.modules.module_abc import SynthesisModule
-from gandlf_synth.utils.compute import backward_pass
+from gandlf_synth.utils.compute import backward_pass, perform_parameter_update
 from gandlf_synth.utils.generators import (
     generate_latent_vector,
     get_fixed_latent_vector,
@@ -59,17 +58,11 @@ class UnlabeledDCGANModule(SynthesisModule):
             clip_grad=self.model_config.clip_grad,
             clip_mode=self.model_config.clip_mode,
         )
-        is_any_nan = torch.isnan(disc_loss_real) or torch.isnan(disc_loss_fake)
-        if not is_any_nan:
-            # is this correct? is it propagating correctly?
-            loss_disc = disc_loss_real + disc_loss_fake
-            self.optimizers["disc_optimizer"].step()
-            self.optimizers["disc_optimizer"].zero_grad(set_to_none=True)
-        else:
-            warnings.warn(
-                f"NaN loss detected in discriminator step for batch {batch_idx}, the step will be skipped",
-                RuntimeWarning,
-            )
+        loss_disc = perform_parameter_update(
+            loss=[disc_loss_real, disc_loss_fake],
+            optimizer=self.optimizers["disc_optimizer"],
+            batch_idx=batch_idx,
+        )
 
         # GENERATOR PASS
         self.optimizers["gen_optimizer"].zero_grad(set_to_none=True)
@@ -84,15 +77,11 @@ class UnlabeledDCGANModule(SynthesisModule):
             clip_grad=self.model_config.clip_grad,
             clip_mode=self.model_config.clip_mode,
         )
-        is_any_nan = torch.isnan(gen_loss)
-        if not is_any_nan:
-            self.optimizers["gen_optimizer"].step()
-            self.optimizers["gen_optimizer"].zero_grad(set_to_none=True)
-        else:
-            warnings.warn(
-                f"NaN loss detected in generator step for batch {batch_idx}, the step will be skipped",
-                RuntimeWarning,
-            )
+        gen_loss = perform_parameter_update(
+            loss=gen_loss,
+            optimizer=self.optimizers["gen_optimizer"],
+            batch_idx=batch_idx,
+        )
 
         # Scheduler step
         if self.schedulers is not None:
@@ -190,11 +179,11 @@ class UnlabeledDCGANModule(SynthesisModule):
         if self.metric_calculator is not None:
             metric_results = {}
             for metric_name, metric in self.metric_calculator.items():
-                val_metric_name = f"val_{metric_name}"
+                val_metric_name = f"test_{metric_name}"
                 metric_results[val_metric_name] = metric(real_images, generated_images)
             self._log_dict(metric_results)
-        self._log("val_disc_loss", disc_loss)
-        self._log("val_gen_loss", gen_loss)
+        self._log("test_disc_loss", disc_loss)
+        self._log("test_gen_loss", gen_loss)
 
     @torch.no_grad
     def inference_step(self, **kwargs) -> torch.Tensor:
