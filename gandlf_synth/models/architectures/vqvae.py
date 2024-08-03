@@ -91,9 +91,9 @@ class _EncoderVQVAE(nn.Module):
         for i in range(len(num_channels_downsample_layers)):
             blocks.append(
                 conv(
-                    in_channels=in_channels
-                    if i == 0
-                    else num_channels_downsample_layers[i - 1],
+                    in_channels=(
+                        in_channels if i == 0 else num_channels_downsample_layers[i - 1]
+                    ),
                     out_channels=num_channels_downsample_layers[i],
                     stride=downsample_conv_parameters[i][0],
                     kernel_size=downsample_conv_parameters[i][1],
@@ -191,9 +191,11 @@ class _DecoderVQVAE(nn.Module):
             blocks.append(
                 conv(
                     in_channels=num_channels_upsample_layers[i],
-                    out_channels=out_channels
-                    if i == len(num_channels_upsample_layers) - 1
-                    else num_channels_upsample_layers[i + 1],
+                    out_channels=(
+                        out_channels
+                        if i == len(num_channels_upsample_layers) - 1
+                        else num_channels_upsample_layers[i + 1]
+                    ),
                     stride=upsample_conv_parameters[i][0],
                     kernel_size=upsample_conv_parameters[i][1],
                     dilation=upsample_conv_parameters[i][2],

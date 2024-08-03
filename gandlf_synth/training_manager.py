@@ -87,11 +87,9 @@ class TrainingManager:
         self._assert_parameter_correctness()
         self._warn_user()
 
-        (
-            self.train_dataloader,
-            self.val_dataloader,
-            self.test_dataloader,
-        ) = self._prepare_dataloaders()
+        (self.train_dataloader, self.val_dataloader, self.test_dataloader) = (
+            self._prepare_dataloaders()
+        )
         metric_calculator = (
             get_metrics(global_config["metrics"])
             if "metrics" in global_config
