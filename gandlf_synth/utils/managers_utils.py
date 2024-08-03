@@ -1,11 +1,12 @@
-import os
 import logging
+from tqdm import tqdm
+from torch.utils.data import DataLoader
 from torchio.transforms import Compose
 
 from GANDLF.data.augmentation import get_augmentation_transforms
 from gandlf_synth.data.preprocessing import get_preprocessing_transforms
 from gandlf_synth.data.postprocessing import get_postprocessing_transforms
-from typing import List, Tuple, Callable, Optional, Union, Callable
+from typing import List, Tuple, Callable, Union, Callable
 
 
 def prepare_logger(logger_name: str) -> logging.Logger:
@@ -46,6 +47,7 @@ def prepare_postprocessing_transforms(global_config: dict) -> List[Callable]:
     if postprocessing_config is not None:
         postprocessing_transforms = get_postprocessing_transforms(postprocessing_config)
     return postprocessing_transforms
+
 
 def prepare_transforms(
     preprocessing_config: Union[dict, None],
@@ -115,3 +117,20 @@ def assert_input_correctness(
         batch_image_shape == expected_input_shape
     ), f"Batch {batch_idx} has incorrect shape. Expected: {expected_input_shape}, got: {batch_image_shape}"
 
+
+def prepare_progress_bar(
+    dataloader: DataLoader, total_size: int, description: str, **kwargs
+):
+    """
+    Prepare the progress bar for the dataloader.
+
+    Args:
+        dataloader (DataLoader): The dataloader.
+        total_size (int): The total size of the dataloader.
+        description (str): The description of the progress bar.
+        **kwargs: Additional keyword arguments for tqdm.
+
+    Returns:
+        progress_bar (tqdm.tqdm): The progress bar.
+    """
+    return tqdm(enumerate(dataloader), total=total_size, desc=description, **kwargs)

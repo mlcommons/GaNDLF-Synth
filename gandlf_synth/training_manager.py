@@ -16,6 +16,7 @@ from gandlf_synth.utils.managers_utils import (
     prepare_postprocessing_transforms,
     prepare_transforms,
     assert_input_correctness,
+    prepare_progress_bar,
 )
 from gandlf_synth.utils.compute import ensure_device_placement
 from gandlf_synth.metrics import get_metrics
@@ -91,7 +92,11 @@ class TrainingManager:
             self.val_dataloader,
             self.test_dataloader,
         ) = self._prepare_dataloaders()
-        metric_calculator = get_metrics(global_config["metrics"]) if "metrics" in global_config else None
+        metric_calculator = (
+            get_metrics(global_config["metrics"])
+            if "metrics" in global_config
+            else None
+        )
         # TODO move it to the main_run function, as well as logger initialization
         module_factory = ModuleFactory(
             model_config=self.model_config,
@@ -299,15 +304,16 @@ class TrainingManager:
         """
         # CAUTION - keep careful when dealing with multiple batches and split images (slices)
         self.module.save_checkpoint(suffix="_start")
-
-        for epoch in range(self.global_config["num_epochs"]):
+        num_epochs = self.global_config["num_epochs"]
+        for epoch in range(num_epochs):
             self.module._on_train_epoch_start(epoch)
+            train_progress_bar = prepare_progress_bar(
+                self.train_dataloader,
+                len(self.train_dataloader),
+                f"Training epoch {epoch}/{num_epochs}",
+            )
 
-            for batch_idx, batch in tqdm(
-                enumerate(self.train_dataloader),
-                total=len(self.train_dataloader),
-                desc=f"Training epoch {epoch}/{self.global_config['num_epochs']}",
-            ):
+            for batch_idx, batch in train_progress_bar:
                 assert_input_correctness(
                     configured_input_shape=self.model_config.tensor_shape,
                     configured_n_channels=self.model_config.n_channels,
@@ -318,12 +324,13 @@ class TrainingManager:
                 self.module.training_step(batch, batch_idx)
             self.module._on_train_epoch_end(epoch)
             if self.val_dataloader is not None:
+                val_progress_bar = prepare_progress_bar(
+                    self.val_dataloader,
+                    len(self.val_dataloader),
+                    f"Validation epoch {epoch}/{num_epochs}",
+                )
                 self.module._on_validation_epoch_start(epoch)
-                for batch_idx, batch in tqdm(
-                    enumerate(self.val_dataloader),
-                    total=len(self.val_dataloader),
-                    desc=f"Validation epoch {epoch}/{self.global_config['num_epochs']}",
-                ):
+                for batch_idx, batch in val_progress_bar:
                     assert_input_correctness(
                         configured_input_shape=self.model_config.tensor_shape,
                         configured_n_channels=self.model_config.n_channels,
@@ -339,12 +346,12 @@ class TrainingManager:
                 self.module.save_checkpoint(suffix=f"epoch-{epoch}")
             self.module.save_checkpoint(suffix=f"latest")
         if self.test_dataloader is not None:
+            test_progress_bar = prepare_progress_bar(
+                self.test_dataloader, len(self.test_dataloader), "Testing"
+            )
+
             self.module._on_test_start()
-            for batch_idx, batch in tqdm(
-                enumerate(self.test_dataloader),
-                total=len(self.test_dataloader),
-                desc="Testing",
-            ):
+            for batch_idx, batch in test_progress_bar:
                 assert_input_correctness(
                     configured_input_shape=self.model_config.tensor_shape,
                     configured_n_channels=self.model_config.n_channels,
