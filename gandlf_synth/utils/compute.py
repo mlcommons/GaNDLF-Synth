@@ -94,7 +94,6 @@ def perform_parameter_update(
             RuntimeWarning,
         )
         return
-    optimizer.zero_grad(set_to_none=True)
     optimizer.step()
     optimizer.zero_grad(set_to_none=True)
     return loss
