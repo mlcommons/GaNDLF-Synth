@@ -1,6 +1,6 @@
 import torch
 import torch.nn.functional as F
-from torch.nn import MSELoss, CrossEntropyLoss, BCEWithLogitsLoss, BCELoss, Module
+from torch.nn import MSELoss, L1Loss,CrossEntropyLoss, BCEWithLogitsLoss, BCELoss, Module
 
 from typing import Optional
 
@@ -79,3 +79,17 @@ def MSE(loss_params: dict) -> Module:
     """
 
     return MSELoss(**loss_params)
+
+
+def L1(loss_params: dict) -> Module:
+    """
+    L1 loss.
+
+    Args:
+        loss_params (dict): Dictionary containing the loss parameters.
+
+    Returns:
+        torch.Tensor: L1 loss tensor.
+    """
+
+    return L1Loss(**loss_params)
