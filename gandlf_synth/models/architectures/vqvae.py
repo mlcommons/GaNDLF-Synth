@@ -40,8 +40,8 @@ class _ResidualBlockVQVAE(nn.Module):
             conv(
                 in_channels, num_residual_channels, kernel_size=3, stride=1, padding=1
             ),
-            nn.ReLU(),
             dropout(dropout_prob),
+            nn.ReLU(),
             conv(
                 num_residual_channels, in_channels, kernel_size=3, stride=1, padding=1
             ),
@@ -146,6 +146,7 @@ class _DecoderVQVAE(nn.Module):
         dropout_prob: float,
         dropout: nn.Module,
         conv: nn.Module,
+        conv_transpose: nn.Module,
     ):
         """
         Decoder for VQVAE model.
@@ -163,6 +164,7 @@ class _DecoderVQVAE(nn.Module):
             dropout_prob (float): The dropout probability.
             dropout (nn.Module): The dropout layer.
             conv (nn.Module): The convolution layer.
+            conv_transpose (nn.Module): The transposed convolution layer.
         """
         super().__init__()
         blocks = []
@@ -187,9 +189,8 @@ class _DecoderVQVAE(nn.Module):
                         conv=conv,
                     )
                 )
-                blocks.append(dropout(dropout_prob))
             blocks.append(
-                conv(
+                conv_transpose(
                     in_channels=num_channels_upsample_layers[i],
                     out_channels=(
                         out_channels
@@ -255,7 +256,8 @@ class VQVAE(ModelBase):
             ],
             dropout_prob=model_config.architecture["dropout"],
             dropout=self.Dropout,
-            conv=self.ConvTranspose,
+            conv=self.Conv,
+            conv_transpose=self.ConvTranspose,
         )
         # I on purpose ommited the embedding_init parameter here
         self.quantizer = VectorQuantizer(
