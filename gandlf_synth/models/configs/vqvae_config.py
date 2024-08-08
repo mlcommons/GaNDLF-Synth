@@ -27,7 +27,7 @@ class VQVAEConfig(AbstractModelConfig):
             "dropout": 0.0,
             "num_embeddings": 32,
             "loss_scaling_commitment_cost": 0.25,
-            "EMA_decay": 0.99,
+            "EMA_decay": 0.5,
             "epsilon": 1e-5,
         }
 
