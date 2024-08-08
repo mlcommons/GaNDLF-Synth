@@ -1,8 +1,8 @@
 from copy import deepcopy
 from torch.nn import Module
-from .generic import CEL, BCELogits, CE, MSE
+from .generic import CEL, BCELogits, CE, MSE, L1
 
-global_losses_dict = {"cel": CEL, "bcelogits": BCELogits, "ce": CE, "mse": MSE}
+global_losses_dict = {"cel": CEL, "l1"  : L1,"bcelogits": BCELogits, "ce": CE, "mse": MSE}
 
 
 def get_loss(loss_params: dict) -> Module:
