@@ -1,3 +1,4 @@
+import os
 import logging
 from tqdm import tqdm
 from torch.utils.data import DataLoader
@@ -9,26 +10,28 @@ from gandlf_synth.data.postprocessing import get_postprocessing_transforms
 from typing import List, Tuple, Callable, Union, Callable
 
 
-def prepare_logger(logger_name: str) -> logging.Logger:
+def prepare_logger(logger_name: str, model_dir_path: str) -> logging.Logger:
     """
     Prepare the logger.
 
     Args:
         logger_name (str): The name of the logger.
+        model_dir_path (str): The path to the model directory.
 
     Returns:
         logging.Logger: The logger.
     """
-    formatter = logging.Formatter(
-        fmt="%(asctime)s - %(levelname)s - %(module)s - %(message)s"
+    formatter = logging.Formatter(fmt="%(asctime)s - %(levelname)s - %(message)s")
+    filehandler = logging.FileHandler(
+        os.path.join(model_dir_path, f"{logger_name}.log")
     )
-
     handler = logging.StreamHandler()
     handler.setFormatter(formatter)
-
+    filehandler.setFormatter(formatter)
     logger = logging.getLogger(logger_name)
     logger.setLevel(logging.INFO)
     logger.addHandler(handler)
+    logger.addHandler(filehandler)
     return logger
 
 

@@ -81,15 +81,17 @@ class TrainingManager:
         self.reset = reset
         self.device = device
 
-        self.logger = prepare_logger(self.LOGGER_NAME)
         self._prepare_output_dir()
+        self.logger = prepare_logger(self.LOGGER_NAME, self.output_dir)
         self._load_or_save_parameters()
         self._assert_parameter_correctness()
         self._warn_user()
 
-        (self.train_dataloader, self.val_dataloader, self.test_dataloader) = (
-            self._prepare_dataloaders()
-        )
+        (
+            self.train_dataloader,
+            self.val_dataloader,
+            self.test_dataloader,
+        ) = self._prepare_dataloaders()
         metric_calculator = (
             get_metrics(global_config["metrics"])
             if "metrics" in global_config
@@ -211,9 +213,6 @@ class TrainingManager:
         Prepare the output directory for the training process.
         """
         if self.reset and os.path.exists(self.output_dir):
-            self.logger.info(
-                f"Reset flag chosen, erasing {self.output_dir} and training from scratch."
-            )
             shutil.rmtree(self.output_dir)
 
         if not os.path.exists(self.output_dir):
