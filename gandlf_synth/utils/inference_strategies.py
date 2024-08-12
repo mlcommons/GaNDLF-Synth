@@ -196,7 +196,7 @@ class ReconstructionInferenceStrategy(InferenceStrategy):
 
             for i, recon_image in enumerate(recon_images):
                 image_path = os.path.join(
-                    self.output_dir, f"reconstructed_image_{batch_idx * len(batch) + i}"
+                    self.output_dir, f"synthetic_image_{batch_idx * len(batch) + i}"
                 )
                 save_single_image(
                     recon_image,
