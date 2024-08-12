@@ -16,10 +16,16 @@ from gandlf_synth.optimizers import get_optimizer
 from gandlf_synth.losses import get_loss
 from gandlf_synth.schedulers import get_scheduler
 
-from typing import Dict, Union
+from typing import Dict, Union, List
 
 
 class UnlabeledDCGANModule(SynthesisModule):
+    def __init__(self, **kwargs) -> None:
+        super().__init__(**kwargs)
+        self.train_loss_list: List[Dict[float]] = []
+        self.val_loss_list: List[Dict[float]] = []
+        self.test_loss_list: List[Dict[float]] = []
+
     def training_step(self, batch: object, batch_idx: int) -> torch.Tensor:
         real_images = batch
         batch_size = real_images.shape[0]
@@ -92,6 +98,9 @@ class UnlabeledDCGANModule(SynthesisModule):
                 self.schedulers["disc_scheduler"].step()
         self._log("disc_loss", loss_disc)
         self._log("gen_loss", gen_loss)
+        self.train_loss_list.append(
+            {"disc_loss": loss_disc.item(), "gen_loss": gen_loss.item()}
+        )
         if self.metric_calculator is not None:
             metric_results = {}
             for metric_name, metric in self.metric_calculator.items():
@@ -290,6 +299,16 @@ class UnlabeledDCGANModule(SynthesisModule):
     # TODO can we make it nicer? It's a bit of a mess, plus maybe saving can be
     # done in parallel?
     def _on_train_epoch_end(self, epoch: int) -> None:
+        avg_disc_loss = sum([loss["disc_loss"] for loss in self.train_loss_list]) / len(
+            self.train_loss_list
+        )
+        avg_gen_loss = sum([loss["gen_loss"] for loss in self.train_loss_list]) / len(
+            self.train_loss_list
+        )
+
+        self._log(f"Epoch {epoch} discriminator loss", avg_disc_loss)
+        self._log(f"Epoch {epoch} generator loss", avg_gen_loss)
+
         eval_save_interval = self.model_config.save_eval_images_every_n_epochs
         if eval_save_interval > 0 and epoch % eval_save_interval == 0:
             fixed_images_save_path = os.path.join(

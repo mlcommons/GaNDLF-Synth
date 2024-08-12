@@ -9,10 +9,16 @@ from gandlf_synth.optimizers import get_optimizer
 from gandlf_synth.losses import get_loss
 from gandlf_synth.schedulers import get_scheduler
 
-from typing import Dict, Union
+from typing import Dict, Union, List, Tuple
 
 
 class UnlabeledVQVAEModule(SynthesisModule):
+    def __init__(self, **kwargs) -> None:
+        super().__init__(**kwargs)
+        self.train_loss_list: List[Dict[float]] = []
+        self.val_loss_list: List[Dict[float]] = []
+        self.test_loss_list: List[Dict[float]] = []
+
     def training_step(self, batch: object, batch_idx: int) -> torch.Tensor:
         x = batch
         recon_images, quantization_loss = self.model(x)
@@ -30,10 +36,16 @@ class UnlabeledVQVAEModule(SynthesisModule):
         perform_parameter_update(
             loss=loss, optimizer=self.optimizers, batch_idx=batch_idx
         )
-
+        self.train_loss_list.append(
+            {
+                "reconstruction_loss": reconstruction_loss.item(),
+                "quantization_loss": quantization_loss.item(),
+                "total_loss": loss.item(),
+            }
+        )
         self._log("reconstruction_loss", reconstruction_loss)
         self._log("quantization_loss", quantization_loss)
-
+        # self.
         if self.metric_calculator is not None:
             metric_result = {}
             for metric_name, metric in self.metric_calculator.items():
@@ -49,6 +61,12 @@ class UnlabeledVQVAEModule(SynthesisModule):
 
         self._log("val_reconstruction_loss", reconstruction_loss)
         self._log("val_quantization_loss", quantization_loss)
+        self.val_loss_list.append(
+            {
+                "reconstruction_loss": reconstruction_loss.item(),
+                "quantization_loss": quantization_loss.item(),
+            }
+        )
 
         if self.metric_calculator is not None:
             metric_result = {}
@@ -84,7 +102,6 @@ class UnlabeledVQVAEModule(SynthesisModule):
         recon_loss = self.losses(recon_images, input_batch)
         self._log("inference_reconstruction_loss", recon_loss)
         self._log("inference_quantization_loss", quantization_loss)
-
         if self.postprocessing_transforms is not None:
             for transform in self.postprocessing_transforms:
                 recon_images = transform(recon_images)
@@ -97,6 +114,30 @@ class UnlabeledVQVAEModule(SynthesisModule):
             self._log_dict(metric_result)
 
         return recon_images
+
+    def _on_train_epoch_end(self, epoch: int) -> None:
+        avg_recon_loss = sum(
+            [loss["reconstruction_loss"] for loss in self.train_loss_list]
+        ) / len(self.train_loss_list)
+        avg_quant_loss = sum(
+            [loss["quantization_loss"] for loss in self.train_loss_list]
+        ) / len(self.train_loss_list)
+        avg_total_loss = sum(
+            [loss["total_loss"] for loss in self.train_loss_list]
+        ) / len(self.train_loss_list)
+        self._log(f"Epoch {epoch} reconstruction loss", avg_recon_loss)
+        self._log(f"Epoch {epoch} quantization loss", avg_quant_loss)
+        self._log(f"Epoch {epoch} total loss", avg_total_loss)
+
+    def _on_validation_epoch_end(self, epoch: int) -> None:
+        avg_recon_loss = sum(
+            [loss["reconstruction_loss"] for loss in self.val_loss_list]
+        ) / len(self.val_loss_list)
+        avg_quant_loss = sum(
+            [loss["quantization_loss"] for loss in self.val_loss_list]
+        ) / len(self.val_loss_list)
+        self._log(f"Epoch {epoch} validation reconstruction loss", avg_recon_loss)
+        self._log(f"Epoch {epoch} validation quantization loss", avg_quant_loss)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         return self.model(x)
