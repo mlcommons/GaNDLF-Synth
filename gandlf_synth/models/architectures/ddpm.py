@@ -1011,3 +1011,198 @@ class CrossAttnUpBlockGandlf(CrossAttnUpBlock):
                 )
         else:
             self.upsampler = None
+
+
+def get_down_block(
+    spatial_dims: int,
+    in_channels: int,
+    out_channels: int,
+    temb_channels: int,
+    num_res_blocks: int,
+    norm_num_groups: int,
+    norm_eps: float,
+    add_downsample: bool,
+    resblock_updown: bool,
+    with_attn: bool,
+    with_cross_attn: bool,
+    num_head_channels: int,
+    transformer_num_layers: int,
+    conv: Type[nn.Module],
+    pool: Type[nn.Module],
+    cross_attention_dim: int | None,
+    upcast_attention: bool = False,
+    use_flash_attention: bool = False,
+    dropout_cattn: float = 0.0,
+) -> nn.Module:
+    if with_attn:
+        return AttnDownBlockGandlf(
+            spatial_dims=spatial_dims,
+            in_channels=in_channels,
+            out_channels=out_channels,
+            temb_channels=temb_channels,
+            num_res_blocks=num_res_blocks,
+            norm_num_groups=norm_num_groups,
+            conv=conv,
+            pool=pool,
+            norm_eps=norm_eps,
+            add_downsample=add_downsample,
+            resblock_updown=resblock_updown,
+            num_head_channels=num_head_channels,
+            use_flash_attention=use_flash_attention,
+        )
+    elif with_cross_attn:
+        return CrossAttnDownBlockGandlf(
+            spatial_dims=spatial_dims,
+            in_channels=in_channels,
+            out_channels=out_channels,
+            temb_channels=temb_channels,
+            num_res_blocks=num_res_blocks,
+            norm_num_groups=norm_num_groups,
+            conv=conv,
+            pool=pool,
+            norm_eps=norm_eps,
+            add_downsample=add_downsample,
+            resblock_updown=resblock_updown,
+            num_head_channels=num_head_channels,
+            transformer_num_layers=transformer_num_layers,
+            cross_attention_dim=cross_attention_dim,
+            upcast_attention=upcast_attention,
+            use_flash_attention=use_flash_attention,
+            dropout_cattn=dropout_cattn,
+        )
+    else:
+        return DownBlockGandlf(
+            spatial_dims=spatial_dims,
+            in_channels=in_channels,
+            out_channels=out_channels,
+            temb_channels=temb_channels,
+            conv=conv,
+            num_res_blocks=num_res_blocks,
+            norm_num_groups=norm_num_groups,
+            norm_eps=norm_eps,
+            add_downsample=add_downsample,
+            resblock_updown=resblock_updown,
+        )
+
+
+def get_mid_block(
+    spatial_dims: int,
+    in_channels: int,
+    temb_channels: int,
+    norm_num_groups: int,
+    norm_eps: float,
+    with_conditioning: bool,
+    num_head_channels: int,
+    transformer_num_layers: int,
+    conv: Type[nn.Module],
+    pool: Type[nn.Module],
+    cross_attention_dim: int | None,
+    upcast_attention: bool = False,
+    use_flash_attention: bool = False,
+    dropout_cattn: float = 0.0,
+) -> nn.Module:
+    if with_conditioning:
+        return CrossAttnMidBlockGandlf(
+            spatial_dims=spatial_dims,
+            in_channels=in_channels,
+            temb_channels=temb_channels,
+            norm_num_groups=norm_num_groups,
+            conv=conv,
+            pool=pool,
+            norm_eps=norm_eps,
+            num_head_channels=num_head_channels,
+            transformer_num_layers=transformer_num_layers,
+            cross_attention_dim=cross_attention_dim,
+            upcast_attention=upcast_attention,
+            use_flash_attention=use_flash_attention,
+            dropout_cattn=dropout_cattn,
+        )
+    else:
+        return AttnMidBlockGandlf(
+            spatial_dims=spatial_dims,
+            in_channels=in_channels,
+            temb_channels=temb_channels,
+            norm_num_groups=norm_num_groups,
+            conv=conv,
+            pool=pool,
+            norm_eps=norm_eps,
+            num_head_channels=num_head_channels,
+            use_flash_attention=use_flash_attention,
+        )
+
+
+def get_up_block(
+    spatial_dims: int,
+    in_channels: int,
+    prev_output_channel: int,
+    out_channels: int,
+    temb_channels: int,
+    num_res_blocks: int,
+    norm_num_groups: int,
+    norm_eps: float,
+    add_upsample: bool,
+    resblock_updown: bool,
+    with_attn: bool,
+    with_cross_attn: bool,
+    num_head_channels: int,
+    transformer_num_layers: int,
+    conv: Type[nn.Module],
+    pool: Type[nn.Module],
+    cross_attention_dim: int | None,
+    upcast_attention: bool = False,
+    use_flash_attention: bool = False,
+    dropout_cattn: float = 0.0,
+) -> nn.Module:
+    if with_attn:
+        return AttnUpBlockGandlf(
+            spatial_dims=spatial_dims,
+            in_channels=in_channels,
+            prev_output_channel=prev_output_channel,
+            out_channels=out_channels,
+            temb_channels=temb_channels,
+            num_res_blocks=num_res_blocks,
+            norm_num_groups=norm_num_groups,
+            conv=conv,
+            pool=pool,
+            norm_eps=norm_eps,
+            add_upsample=add_upsample,
+            resblock_updown=resblock_updown,
+            num_head_channels=num_head_channels,
+            use_flash_attention=use_flash_attention,
+        )
+    elif with_cross_attn:
+        return CrossAttnUpBlockGandlf(
+            spatial_dims=spatial_dims,
+            in_channels=in_channels,
+            prev_output_channel=prev_output_channel,
+            out_channels=out_channels,
+            temb_channels=temb_channels,
+            num_res_blocks=num_res_blocks,
+            norm_num_groups=norm_num_groups,
+            conv=conv,
+            pool=pool,
+            norm_eps=norm_eps,
+            add_upsample=add_upsample,
+            resblock_updown=resblock_updown,
+            num_head_channels=num_head_channels,
+            transformer_num_layers=transformer_num_layers,
+            cross_attention_dim=cross_attention_dim,
+            upcast_attention=upcast_attention,
+            use_flash_attention=use_flash_attention,
+            dropout_cattn=dropout_cattn,
+        )
+    else:
+        return UpBlockGandlf(
+            spatial_dims=spatial_dims,
+            in_channels=in_channels,
+            prev_output_channel=prev_output_channel,
+            out_channels=out_channels,
+            temb_channels=temb_channels,
+            conv=conv,
+            pool=pool,
+            num_res_blocks=num_res_blocks,
+            norm_num_groups=norm_num_groups,
+            norm_eps=norm_eps,
+            add_upsample=add_upsample,
+            resblock_updown=resblock_updown,
+        )
