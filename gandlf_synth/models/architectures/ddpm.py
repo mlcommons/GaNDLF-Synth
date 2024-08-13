@@ -1247,8 +1247,7 @@ class DDPM(ModelBase):
         transformer_num_layers = model_config.architecture["transformer_num_layers"]
         cross_attention_dim = model_config.architecture["cross_attention_dim"]
         upcast_attention = model_config.architecture["upcast_attention"]
-        use_flash_attention = model_config.architecture["use_flash_attention"]
-        dropout_cattn = model_config.architecture["dropout_cattn"]
+        dropout_cattn = model_config.architecture["cross_attention_dropout "]
 
         self.num_class_embeds = model_config.architecture["num_class_embeds"]
         self.with_conditioning = model_config.architecture["with_conditioning"]
@@ -1294,7 +1293,7 @@ class DDPM(ModelBase):
                 transformer_num_layers=transformer_num_layers,
                 cross_attention_dim=cross_attention_dim,
                 upcast_attention=upcast_attention,
-                use_flash_attention=use_flash_attention,
+                use_flash_attention=False,  # no flash attention support for now
                 dropout_cattn=dropout_cattn,
                 conv=self.Conv,
                 pool=self.AvgPool,
@@ -1312,7 +1311,7 @@ class DDPM(ModelBase):
             transformer_num_layers=transformer_num_layers,
             cross_attention_dim=cross_attention_dim,
             upcast_attention=upcast_attention,
-            use_flash_attention=use_flash_attention,
+            use_flash_attention=False,
             dropout_cattn=dropout_cattn,
             conv=self.Conv,
             pool=self.AvgPool,
@@ -1351,7 +1350,7 @@ class DDPM(ModelBase):
                 transformer_num_layers=transformer_num_layers,
                 cross_attention_dim=cross_attention_dim,
                 upcast_attention=upcast_attention,
-                use_flash_attention=use_flash_attention,
+                use_flash_attention=False,
                 dropout_cattn=dropout_cattn,
                 conv=self.Conv,
                 pool=self.AvgPool,
