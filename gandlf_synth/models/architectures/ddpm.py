@@ -3,14 +3,12 @@ https://github.com/Project-MONAI/GenerativeModels by MONAI Consortium.
 It contains wrappers and class extensions for compatibility with the
 gandlf-synth library.
 """
+import math
+
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
-from collections.abc import Sequence
 
-from generative.networks.layers.vector_quantizer import VectorQuantizer, EMAQuantizer
 from generative.networks.nets.diffusion_model_unet import (
-    CrossAttention,
     BasicTransformerBlock,
     AttentionBlock,
     SpatialTransformer,
@@ -31,12 +29,7 @@ from gandlf_synth.models.architectures.base_model import ModelBase
 from gandlf_synth.models.configs.config_abc import AbstractModelConfig
 
 
-from typing import Type, Union, List, Tuple, Optional, Dict
-
-
-# to rewrite (containing convolutions)
-# AttnUpBlock, CrossAttnUpBlock, get_down_block,get_mid_block
-# get_up_block, DiffusionModelUNet
+from typing import Type, Optional
 
 
 class SpatialTransformerGandlf(SpatialTransformer):
@@ -1206,3 +1199,257 @@ def get_up_block(
             add_upsample=add_upsample,
             resblock_updown=resblock_updown,
         )
+
+
+def get_timestep_embedding(
+    timesteps: torch.Tensor, embedding_dim: int, max_period: int = 10000
+) -> torch.Tensor:
+    """
+    Create sinusoidal timestep embeddings following the implementation in Ho et al. "Denoising Diffusion Probabilistic
+    Models" https://arxiv.org/abs/2006.11239.
+
+    Args:
+        timesteps: a 1-D Tensor of N indices, one per batch element.
+        embedding_dim: the dimension of the output.
+        max_period: controls the minimum frequency of the embeddings.
+    """
+    if timesteps.ndim != 1:
+        raise ValueError("Timesteps should be a 1d-array")
+
+    half_dim = embedding_dim // 2
+    exponent = -math.log(max_period) * torch.arange(
+        start=0, end=half_dim, dtype=torch.float32, device=timesteps.device
+    )
+    freqs = torch.exp(exponent / half_dim)
+
+    args = timesteps[:, None].float() * freqs[None, :]
+    embedding = torch.cat([torch.cos(args), torch.sin(args)], dim=-1)
+
+    # zero pad
+    if embedding_dim % 2 == 1:
+        embedding = torch.nn.functional.pad(embedding, (0, 1, 0, 0))
+
+    return embedding
+
+
+class DDPM(ModelBase):
+    def __init__(self, model_config: Type[AbstractModelConfig]) -> None:
+        ModelBase.__init__(self, model_config)
+
+        num_channels = model_config.architecture["num_channels"]
+        out_channels = model_config.architecture["out_channels"]
+        num_res_blocks = model_config.architecture["num_res_blocks"]
+        norm_num_groups = model_config.architecture["norm_num_groups"]
+        norm_eps = model_config.architecture["norm_eps"]
+        resblock_updown = model_config.architecture["resblock_updown"]
+        attention_levels = model_config.architecture["attention_levels"]
+        num_head_channels = model_config.architecture["num_head_channels"]
+        transformer_num_layers = model_config.architecture["transformer_num_layers"]
+        cross_attention_dim = model_config.architecture["cross_attention_dim"]
+        upcast_attention = model_config.architecture["upcast_attention"]
+        use_flash_attention = model_config.architecture["use_flash_attention"]
+        dropout_cattn = model_config.architecture["dropout_cattn"]
+
+        self.num_class_embeds = model_config.architecture["num_class_embeds"]
+        self.with_conditioning = model_config.architecture["with_conditioning"]
+        self.block_out_channels = num_channels
+
+        self.conv_in = self.Conv(
+            in_channels=self.n_channels,
+            out_channels=num_channels[0],
+            stride=1,
+            kernel_size=3,
+            padding=1,
+        )
+        time_embed_dim = num_channels[0] * 4
+        self.time_embed = nn.Sequential(
+            nn.Linear(num_channels[0], time_embed_dim),
+            nn.SiLU(),
+            nn.Linear(time_embed_dim, time_embed_dim),
+        )
+
+        if self.num_class_embeds is not None:
+            self.class_embedding = nn.Embedding(self.num_class_embeds, time_embed_dim)
+        self.down_blocks = nn.ModuleList([])
+        output_channel = num_channels[0]
+
+        for i in range(len(num_channels)):
+            input_channel = output_channel
+            output_channel = num_channels[i]
+            is_final_block = i == len(num_channels) - 1
+
+            down_block = get_down_block(
+                spatial_dims=self.n_dimensions,
+                in_channels=input_channel,
+                out_channels=output_channel,
+                temb_channels=time_embed_dim,
+                num_res_blocks=num_res_blocks[i],
+                norm_num_groups=norm_num_groups,
+                norm_eps=norm_eps,
+                add_downsample=not is_final_block,
+                resblock_updown=resblock_updown,
+                with_attn=(attention_levels[i] and not self.with_conditioning),
+                with_cross_attn=(attention_levels[i] and self.with_conditioning),
+                num_head_channels=num_head_channels[i],
+                transformer_num_layers=transformer_num_layers,
+                cross_attention_dim=cross_attention_dim,
+                upcast_attention=upcast_attention,
+                use_flash_attention=use_flash_attention,
+                dropout_cattn=dropout_cattn,
+                conv=self.Conv,
+                pool=self.AvgPool,
+            )
+            self.down_blocks.append(down_block)
+
+        self.middle_block = get_mid_block(
+            spatial_dims=self.n_dimensions,
+            in_channels=num_channels[-1],
+            temb_channels=time_embed_dim,
+            norm_num_groups=norm_num_groups,
+            norm_eps=norm_eps,
+            with_conditioning=self.with_conditioning,
+            num_head_channels=num_head_channels[-1],
+            transformer_num_layers=transformer_num_layers,
+            cross_attention_dim=cross_attention_dim,
+            upcast_attention=upcast_attention,
+            use_flash_attention=use_flash_attention,
+            dropout_cattn=dropout_cattn,
+            conv=self.Conv,
+            pool=self.AvgPool,
+        )
+        self.up_blocks = nn.ModuleList([])
+        reversed_block_out_channels = list(reversed(num_channels))
+        reversed_num_res_blocks = list(reversed(num_res_blocks))
+        reversed_attention_levels = list(reversed(attention_levels))
+        reversed_num_head_channels = list(reversed(num_head_channels))
+        output_channel = reversed_block_out_channels[0]
+        for i in range(len(reversed_block_out_channels)):
+            prev_output_channel = output_channel
+            output_channel = reversed_block_out_channels[i]
+            input_channel = reversed_block_out_channels[
+                min(i + 1, len(num_channels) - 1)
+            ]
+
+            is_final_block = i == len(num_channels) - 1
+
+            up_block = get_up_block(
+                spatial_dims=self.n_dimensions,
+                in_channels=input_channel,
+                prev_output_channel=prev_output_channel,
+                out_channels=output_channel,
+                temb_channels=time_embed_dim,
+                num_res_blocks=reversed_num_res_blocks[i] + 1,
+                norm_num_groups=norm_num_groups,
+                norm_eps=norm_eps,
+                add_upsample=not is_final_block,
+                resblock_updown=resblock_updown,
+                with_attn=(reversed_attention_levels[i] and not self.with_conditioning),
+                with_cross_attn=(
+                    reversed_attention_levels[i] and self.with_conditioning
+                ),
+                num_head_channels=reversed_num_head_channels[i],
+                transformer_num_layers=transformer_num_layers,
+                cross_attention_dim=cross_attention_dim,
+                upcast_attention=upcast_attention,
+                use_flash_attention=use_flash_attention,
+                dropout_cattn=dropout_cattn,
+                conv=self.Conv,
+                pool=self.AvgPool,
+            )
+
+            self.up_blocks.append(up_block)
+
+        self.out = nn.Sequential(
+            nn.GroupNorm(
+                num_groups=norm_num_groups,
+                num_channels=num_channels[0],
+                eps=norm_eps,
+                affine=True,
+            ),
+            nn.SiLU(),
+            self.Conv(
+                in_channels=num_channels[0],
+                out_channels=out_channels,
+                stride=1,
+                kernel_size=3,
+                padding=1,
+            ),
+        )
+
+    def forward(
+        self,
+        x: torch.Tensor,
+        timesteps: torch.Tensor,
+        context: torch.Tensor | None = None,
+        class_labels: torch.Tensor | None = None,
+        down_block_additional_residuals: tuple[torch.Tensor] | None = None,
+        mid_block_additional_residual: torch.Tensor | None = None,
+    ) -> torch.Tensor:
+        """
+        Args:
+            x: input tensor (N, C, SpatialDims).
+            timesteps: timestep tensor (N,).
+            context: context tensor (N, 1, ContextDim).
+            class_labels: context tensor (N, ).
+            down_block_additional_residuals: additional residual tensors for down blocks (N, C, FeatureMapsDims).
+            mid_block_additional_residual: additional residual tensor for mid block (N, C, FeatureMapsDims).
+        """
+        t_emb = get_timestep_embedding(timesteps, self.block_out_channels[0])
+        t_emb = t_emb.to(dtype=x.dtype)
+        emb = self.time_embed(t_emb)
+
+        if self.num_class_embeds is not None:
+            if class_labels is None:
+                raise ValueError(
+                    "class_labels should be provided when num_class_embeds > 0"
+                )
+            class_emb = self.class_embedding(class_labels)
+            class_emb = class_emb.to(dtype=x.dtype)
+            emb = emb + class_emb
+
+        h = self.conv_in(x)
+
+        if context is not None and self.with_conditioning is False:
+            raise ValueError(
+                "model should have with_conditioning = True if context is provided"
+            )
+        down_block_res_samples: list[torch.Tensor] = [h]
+        for downsample_block in self.down_blocks:
+            h, res_samples = downsample_block(
+                hidden_states=h, temb=emb, context=context
+            )
+            for residual in res_samples:
+                down_block_res_samples.append(residual)
+
+        if down_block_additional_residuals is not None:
+            new_down_block_res_samples = ()
+            for down_block_res_sample, down_block_additional_residual in zip(
+                down_block_res_samples, down_block_additional_residuals
+            ):
+                down_block_res_sample = (
+                    down_block_res_sample + down_block_additional_residual
+                )
+                new_down_block_res_samples += (down_block_res_sample,)
+
+            down_block_res_samples = new_down_block_res_samples
+
+        h = self.middle_block(hidden_states=h, temb=emb, context=context)
+
+        if mid_block_additional_residual is not None:
+            h = h + mid_block_additional_residual
+
+        for upsample_block in self.up_blocks:
+            res_samples = down_block_res_samples[-len(upsample_block.resnets) :]
+            down_block_res_samples = down_block_res_samples[
+                : -len(upsample_block.resnets)
+            ]
+            h = upsample_block(
+                hidden_states=h,
+                res_hidden_states_list=res_samples,
+                temb=emb,
+                context=context,
+            )
+
+        h = self.out(h)
+
+        return h
