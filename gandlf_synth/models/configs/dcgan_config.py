@@ -11,15 +11,6 @@ class UnlabeledDCGANConfig(AbstractModelConfig):
     Configuration class for the DCGAN model handling unlabeled data.
     """
 
-    ARCHITECTURE_DEFAULT_PARAMS = {
-        "latent_vector_size": 100,
-        "init_channels_discriminator": 64,
-        "init_channels_generator": 512,
-        "growth_rate_discriminator": 2,
-        "growth_rate_generator": 2,
-        "leaky_relu_slope": 0.2,
-    }
-
     @staticmethod
     def _validatie_params(model_config: dict) -> None:
         assert (
@@ -56,7 +47,7 @@ class UnlabeledDCGANConfig(AbstractModelConfig):
         }
 
     def _set_default_architecture_params(self, model_config: dict) -> dict:
-        for key, value in self.ARCHITECTURE_DEFAULT_PARAMS.items():
+        for key, value in self.architecture_default_params.items():
             if key not in model_config["architecture"]:
                 model_config["architecture"][key] = value
                 warn(
