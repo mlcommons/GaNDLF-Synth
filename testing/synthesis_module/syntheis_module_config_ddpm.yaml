@@ -1,0 +1,66 @@
+batch_size: 1
+data_augmentation: {}
+data_postprocessing: {}
+data_preprocessing:
+  test:
+    resize:
+    - 128
+    - 128
+  train:
+    resize:
+    - 128
+    - 128
+  val:
+    resize:
+    - 128
+    - 128
+  inference:
+    resize:
+    - 128
+    - 128
+dataloader_config:
+  inference:
+    drop_last: false
+    num_workers: 0
+    pin_memory: false
+    shuffle: false
+  test:
+    drop_last: false
+    num_workers: 0
+    pin_memory: false
+    shuffle: false
+  train:
+    drop_last: false
+    num_workers: 0
+    pin_memory: false
+    shuffle: true
+  validation:
+    drop_last: false
+    num_workers: 0
+    pin_memory: false
+    shuffle: false
+in_memory: false
+modality: rad
+model_config:
+  amp: false
+  converter_type: soft
+  labeling_paradigm: unlabeled
+  losses:
+    name: mse
+  model_name: ddpm
+  n_channels: 2
+  n_dimensions: 2
+  norm_type: batch
+  optimizers:
+      lr: 0.0001
+      name: adam
+  tensor_shape:
+  - 128
+  - 128
+num_epochs: 1
+patience: 0
+save_model_every_n_epochs: 1
+verbose: true
+version:
+  maximum: 0.0.20-dev
+  minimum: 0.0.14
