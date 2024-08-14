@@ -17,12 +17,12 @@ class AbstractModelConfig(ABC):
         config = deepcopy(model_config)
         config = self._set_default_params(config)
         config = self._set_default_architecture_params(config)
-        self._validatie_params(config)
+        self._validate_params(config)
         self._create_properites_from_config(config)
 
     @staticmethod
     @abstractmethod
-    def _validatie_params(model_config: dict) -> None:
+    def _validate_params(model_config: dict) -> None:
         """
         This method checks if the input model configuration is valid by
         checking if the required keys are present in the dictionary.

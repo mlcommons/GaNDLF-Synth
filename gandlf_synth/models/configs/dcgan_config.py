@@ -12,7 +12,7 @@ class UnlabeledDCGANConfig(AbstractModelConfig):
     """
 
     @staticmethod
-    def _validatie_params(model_config: dict) -> None:
+    def _validate_params(model_config: dict) -> None:
         assert (
             len(model_config["tensor_shape"]) == model_config["n_dimensions"]
         ), " `tensor_shape` parameter in model config needs to have number of elements equalt to `n_dimensions`."

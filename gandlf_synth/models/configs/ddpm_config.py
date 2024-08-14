@@ -22,6 +22,7 @@ class DDPMConfig(AbstractModelConfig):
         return {
             "num_res_blocks": (2, 2, 2, 2),
             "num_channels": (32, 64, 64, 64),
+            "num_train_timesteps": 1000,
             "attention_levels": (False, False, True, True),
             "norm_num_groups": 32,
             "norm_eps": 1e-6,
@@ -35,7 +36,6 @@ class DDPMConfig(AbstractModelConfig):
             "cross_attention_dropout": 0.0,
         }
 
-    # TODO finish it
     @staticmethod
     def _validate_params(model_config: dict) -> None:
         architecture_params = model_config["architecture"]
@@ -45,11 +45,7 @@ class DDPMConfig(AbstractModelConfig):
         dropout_cattn = architecture_params["cross_attention_dropout"]
         num_channels = architecture_params["num_channels"]
         norm_num_groups = architecture_params["norm_num_groups"]
-        num_head_channels = architecture_params["num_head_channels"]
         attention_levels = architecture_params["attention_levels"]
-        num_res_blocks = architecture_params["num_res_blocks"]
-        use_flash_attention = architecture_params["use_flash_attention"]
-
         assert not (with_conditioning and cross_attention_dim is None), (
             "DiffusionModelUNet expects dimension of the cross-attention conditioning (cross_attention_dim) "
             "when using with_conditioning."
@@ -70,26 +66,16 @@ class DDPMConfig(AbstractModelConfig):
             attention_levels
         ), "DiffusionModelUNet expects num_channels to be the same size as attention_levels."
 
-        assert len(num_head_channels) == len(attention_levels), (
-            "num_head_channels should have the same length as attention_levels. For the levels without attention, "
-            "i.e., `attention_level[i]=False`, the num_head_channels[i] will be ignored."
-        )
-
-        assert len(num_res_blocks) == len(num_channels), (
-            "`num_res_blocks` should be a single integer or a tuple of integers with the same length as "
-            "`num_channels`."
-        )
-
     def _set_default_architecture_params(self, model_config: dict) -> dict:
         for key, value in self.architecture_default_params.items():
             if key not in model_config["architecture"]:
-                model_config["architecture"][key] = (value,)
+                model_config["architecture"][key] = value
                 warn(
                     f"Parameter {key} not found in the `architecture` field of `model_config`. Setting value to default: {value}.",
                     UserWarning,
                 )
         # special case for the DDPM model
-        model_config["out_channels"] = model_config.get(
+        model_config["architecture"]["out_channels"] = model_config["architecture"].get(
             "out_channels", model_config["n_channels"]
         )
         warn(

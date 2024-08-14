@@ -4,6 +4,7 @@ from torch import device as torch_device
 from gandlf_synth.models.modules.module_abc import SynthesisModule
 from gandlf_synth.models.modules.dcgan_module import UnlabeledDCGANModule
 from gandlf_synth.models.modules.vqvae_module import UnlabeledVQVAEModule
+from gandlf_synth.models.modules.ddpm_module import UnlabeledDDPMModule
 from gandlf_synth.models.configs.config_abc import AbstractModelConfig
 
 from typing import Type, Optional, Dict, List, Callable
@@ -13,6 +14,7 @@ class ModuleFactory:
     AVAILABE_MODULES = {
         "unlabeled_dcgan": UnlabeledDCGANModule,
         "unlabeled_vqvae": UnlabeledVQVAEModule,
+        "unlabeled_ddpm": UnlabeledDDPMModule,
     }
     """
     Class responsible for creating modules.

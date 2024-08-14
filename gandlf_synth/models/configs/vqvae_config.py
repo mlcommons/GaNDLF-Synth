@@ -32,7 +32,7 @@ class VQVAEConfig(AbstractModelConfig):
         }
 
     @staticmethod
-    def _validatie_params(model_config: dict) -> None:
+    def _validate_params(model_config: dict) -> None:
         num_residual_channels = model_config["architecture"]["num_residual_channels"]
         num_residual_layers = model_config["architecture"]["num_residual_layers"]
         downsample_conv_parameters = model_config["architecture"][
