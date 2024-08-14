@@ -303,8 +303,6 @@ def test_train_inference_ddpm():
         example_dataframe = pd.read_csv(CSV_PATH)
         training_manager = TrainingManager(
             train_dataframe=example_dataframe,
-            val_dataframe=example_dataframe,
-            test_dataframe=example_dataframe,
             output_dir=OUTPUT_DIR,
             global_config=global_config,
             model_config=model_config,

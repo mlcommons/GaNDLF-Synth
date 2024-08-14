@@ -53,7 +53,7 @@ class InferenceManager:
         self.output_dir = self._prepare_output_directory(output_dir, model_dir)
         self.device = device
         self.dataframe_reconstruction = dataframe_reconstruction
-        self.logger = prepare_logger(self.LOGGER_NAME)
+        self.logger = prepare_logger(self.LOGGER_NAME, self.output_dir)
 
         module_factory = ModuleFactory(
             model_config=self.model_config,
