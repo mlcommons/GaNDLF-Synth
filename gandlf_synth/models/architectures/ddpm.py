@@ -7,32 +7,21 @@ import math
 
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 
 from generative.networks.nets.diffusion_model_unet import (
     BasicTransformerBlock,
     AttentionBlock,
-    SpatialTransformer,
-    Downsample,
-    Upsample,
-    ResnetBlock,
-    DownBlock,
-    AttnDownBlock,
-    CrossAttnDownBlock,
-    AttnMidBlock,
-    CrossAttnMidBlock,
-    UpBlock,
-    AttnUpBlock,
-    CrossAttnUpBlock,
 )
 
 from gandlf_synth.models.architectures.base_model import ModelBase
 from gandlf_synth.models.configs.config_abc import AbstractModelConfig
 
 
-from typing import Type, Optional
+from typing import Type, Optional, Tuple, Any, Iterable
 
 
-class SpatialTransformerGandlf(SpatialTransformer):
+class SpatialTransformerGandlf(nn.Module):
 
     """
     Transformer block for image-like data. First, project the input (aka embedding) and reshape to b, t, d. Then apply
@@ -69,6 +58,7 @@ class SpatialTransformerGandlf(SpatialTransformer):
         use_flash_attention: bool = False,
     ) -> None:
         super().__init__()
+
         self.spatial_dims = spatial_dims
         self.in_channels = in_channels
         inner_dim = num_attention_heads * num_head_channels
@@ -111,8 +101,49 @@ class SpatialTransformerGandlf(SpatialTransformer):
             padding=0,
         )
 
+    def forward(
+        self, x: torch.Tensor, context: torch.Tensor | None = None
+    ) -> torch.Tensor:
+        batch = channel = height = width = depth = -1
+        if self.spatial_dims == 2:
+            batch, channel, height, width = x.shape
+        if self.spatial_dims == 3:
+            batch, channel, height, width, depth = x.shape
 
-class DownsampleGandlf(Downsample):
+        residual = x
+        x = self.norm(x)
+        x = self.proj_in(x)
+
+        inner_dim = x.shape[1]
+
+        if self.spatial_dims == 2:
+            x = x.permute(0, 2, 3, 1).reshape(batch, height * width, inner_dim)
+        if self.spatial_dims == 3:
+            x = x.permute(0, 2, 3, 4, 1).reshape(
+                batch, height * width * depth, inner_dim
+            )
+
+        for block in self.transformer_blocks:
+            x = block(x, context=context)
+
+        if self.spatial_dims == 2:
+            x = (
+                x.reshape(batch, height, width, inner_dim)
+                .permute(0, 3, 1, 2)
+                .contiguous()
+            )
+        if self.spatial_dims == 3:
+            x = (
+                x.reshape(batch, height, width, depth, inner_dim)
+                .permute(0, 4, 1, 2, 3)
+                .contiguous()
+            )
+
+        x = self.proj_out(x)
+        return x + residual
+
+
+class DownsampleGandlf(nn.Module):
     """
     Downsampling layer.
 
@@ -137,6 +168,7 @@ class DownsampleGandlf(Downsample):
         padding: int = 1,
     ) -> None:
         super().__init__()
+
         self.num_channels = num_channels
         self.out_channels = out_channels or num_channels
         self.use_conv = use_conv
@@ -156,8 +188,17 @@ class DownsampleGandlf(Downsample):
                 )
             self.op = pool(kernel_size=2, stride=2)
 
+    def forward(self, x: torch.Tensor, emb: torch.Tensor | None = None) -> torch.Tensor:
+        del emb
+        if x.shape[1] != self.num_channels:
+            raise ValueError(
+                f"Input number of channels ({x.shape[1]}) is not equal to expected number of channels "
+                f"({self.num_channels})"
+            )
+        return self.op(x)
 
-class UpsampleGandlf(Upsample):
+
+class UpsampleGandlf(nn.Module):
     """
     Upsampling layer with an optional convolution.
 
@@ -191,8 +232,29 @@ class UpsampleGandlf(Upsample):
                 padding=padding,
             )
 
+    def forward(self, x: torch.Tensor, emb: torch.Tensor | None = None) -> torch.Tensor:
+        del emb
+        if x.shape[1] != self.num_channels:
+            raise ValueError("Input channels should be equal to num_channels")
 
-class ResnetBlockGandlf(ResnetBlock):
+        # Cast to float32 to as 'upsample_nearest2d_out_frame' op does not support bfloat16
+        # https://github.com/pytorch/pytorch/issues/86679
+        dtype = x.dtype
+        if dtype == torch.bfloat16:
+            x = x.to(torch.float32)
+
+        x = F.interpolate(x, scale_factor=2.0, mode="nearest")
+
+        # If the input is bfloat16, we cast back to bfloat16
+        if dtype == torch.bfloat16:
+            x = x.to(dtype)
+
+        if self.use_conv:
+            x = self.conv(x)
+        return x
+
+
+class ResnetBlockGandlf(nn.Module):
 
     """
     Residual block with timestep conditioning.
@@ -281,8 +343,37 @@ class ResnetBlockGandlf(ResnetBlock):
                 padding=0,
             )
 
+    def forward(self, x: torch.Tensor, emb: torch.Tensor) -> torch.Tensor:
+        h = x
+        h = self.norm1(h)
+        h = self.nonlinearity(h)
 
-class DownBlockGandlf(DownBlock):
+        if self.upsample is not None:
+            if h.shape[0] >= 64:
+                x = x.contiguous()
+                h = h.contiguous()
+            x = self.upsample(x)
+            h = self.upsample(h)
+        elif self.downsample is not None:
+            x = self.downsample(x)
+            h = self.downsample(h)
+
+        h = self.conv1(h)
+
+        if self.spatial_dims == 2:
+            temb = self.time_emb_proj(self.nonlinearity(emb))[:, :, None, None]
+        else:
+            temb = self.time_emb_proj(self.nonlinearity(emb))[:, :, None, None, None]
+        h = h + temb
+
+        h = self.norm2(h)
+        h = self.nonlinearity(h)
+        h = self.conv2(h)
+
+        return self.skip_connection(x) + h
+
+
+class DownBlockGandlf(nn.Module):
     """
     Unet's down block containing resnet and downsamplers blocks.
 
@@ -363,8 +454,27 @@ class DownBlockGandlf(DownBlock):
         else:
             self.downsampler = None
 
+    def forward(
+        self,
+        hidden_states: torch.Tensor,
+        temb: torch.Tensor,
+        context: torch.Tensor | None = None,
+    ) -> tuple[torch.Tensor, list[torch.Tensor]]:
+        del context
+        output_states = []
 
-class AttnDownBlockGandlf(AttnDownBlock):
+        for resnet in self.resnets:
+            hidden_states = resnet(hidden_states, temb)
+            output_states.append(hidden_states)
+
+        if self.downsampler is not None:
+            hidden_states = self.downsampler(hidden_states, temb)
+            output_states.append(hidden_states)
+
+        return hidden_states, output_states
+
+
+class AttnDownBlockGandlf(nn.Module):
     """
     Unet's down block containing resnet, downsamplers and self-attention blocks.
 
@@ -461,8 +571,28 @@ class AttnDownBlockGandlf(AttnDownBlock):
         else:
             self.downsampler = None
 
+    def forward(
+        self,
+        hidden_states: torch.Tensor,
+        temb: torch.Tensor,
+        context: torch.Tensor | None = None,
+    ) -> tuple[torch.Tensor, list[torch.Tensor]]:
+        del context
+        output_states = []
 
-class CrossAttnDownBlockGandlf(CrossAttnDownBlock):
+        for resnet, attn in zip(self.resnets, self.attentions):
+            hidden_states = resnet(hidden_states, temb)
+            hidden_states = attn(hidden_states)
+            output_states.append(hidden_states)
+
+        if self.downsampler is not None:
+            hidden_states = self.downsampler(hidden_states, temb)
+            output_states.append(hidden_states)
+
+        return hidden_states, output_states
+
+
+class CrossAttnDownBlockGandlf(nn.Module):
     """
     Unet's down block containing resnet, downsamplers and cross-attention blocks.
 
@@ -574,8 +704,27 @@ class CrossAttnDownBlockGandlf(CrossAttnDownBlock):
         else:
             self.downsampler = None
 
+    def forward(
+        self,
+        hidden_states: torch.Tensor,
+        temb: torch.Tensor,
+        context: torch.Tensor | None = None,
+    ) -> tuple[torch.Tensor, list[torch.Tensor]]:
+        output_states = []
 
-class AttnMidBlockGandlf(AttnMidBlock):
+        for resnet, attn in zip(self.resnets, self.attentions):
+            hidden_states = resnet(hidden_states, temb)
+            hidden_states = attn(hidden_states, context=context)
+            output_states.append(hidden_states)
+
+        if self.downsampler is not None:
+            hidden_states = self.downsampler(hidden_states, temb)
+            output_states.append(hidden_states)
+
+        return hidden_states, output_states
+
+
+class AttnMidBlockGandlf(nn.Module):
     """
     Unet's mid block containing resnet and self-attention blocks.
 
@@ -636,8 +785,21 @@ class AttnMidBlockGandlf(AttnMidBlock):
             norm_eps=norm_eps,
         )
 
+    def forward(
+        self,
+        hidden_states: torch.Tensor,
+        temb: torch.Tensor,
+        context: torch.Tensor | None = None,
+    ) -> torch.Tensor:
+        del context
+        hidden_states = self.resnet_1(hidden_states, temb)
+        hidden_states = self.attention(hidden_states)
+        hidden_states = self.resnet_2(hidden_states, temb)
 
-class CrossAttnMidBlockGandlf(CrossAttnMidBlock):
+        return hidden_states
+
+
+class CrossAttnMidBlockGandlf(nn.Module):
     """
     Unet's mid block containing resnet and cross-attention blocks.
 
@@ -711,8 +873,20 @@ class CrossAttnMidBlockGandlf(CrossAttnMidBlock):
             norm_eps=norm_eps,
         )
 
+    def forward(
+        self,
+        hidden_states: torch.Tensor,
+        temb: torch.Tensor,
+        context: torch.Tensor | None = None,
+    ) -> torch.Tensor:
+        hidden_states = self.resnet_1(hidden_states, temb)
+        hidden_states = self.attention(hidden_states, context=context)
+        hidden_states = self.resnet_2(hidden_states, temb)
 
-class UpBlockGandlf(UpBlock):
+        return hidden_states
+
+
+class UpBlockGandlf(nn.Module):
     """
     Unet's up block containing resnet and upsamplers blocks.
 
@@ -794,8 +968,29 @@ class UpBlockGandlf(UpBlock):
         else:
             self.upsampler = None
 
+    def forward(
+        self,
+        hidden_states: torch.Tensor,
+        res_hidden_states_list: list[torch.Tensor],
+        temb: torch.Tensor,
+        context: torch.Tensor | None = None,
+    ) -> torch.Tensor:
+        del context
+        for resnet in self.resnets:
+            # pop res hidden states
+            res_hidden_states = res_hidden_states_list[-1]
+            res_hidden_states_list = res_hidden_states_list[:-1]
+            hidden_states = torch.cat([hidden_states, res_hidden_states], dim=1)
 
-class AttnUpBlockGandlf(AttnUpBlock):
+            hidden_states = resnet(hidden_states, temb)
+
+        if self.upsampler is not None:
+            hidden_states = self.upsampler(hidden_states, temb)
+
+        return hidden_states
+
+
+class AttnUpBlockGandlf(nn.Module):
     """
     Unet's up block containing resnet, upsamplers, and self-attention blocks.
 
@@ -894,8 +1089,30 @@ class AttnUpBlockGandlf(AttnUpBlock):
         else:
             self.upsampler = None
 
+    def forward(
+        self,
+        hidden_states: torch.Tensor,
+        res_hidden_states_list: list[torch.Tensor],
+        temb: torch.Tensor,
+        context: torch.Tensor | None = None,
+    ) -> torch.Tensor:
+        del context
+        for resnet, attn in zip(self.resnets, self.attentions):
+            # pop res hidden states
+            res_hidden_states = res_hidden_states_list[-1]
+            res_hidden_states_list = res_hidden_states_list[:-1]
+            hidden_states = torch.cat([hidden_states, res_hidden_states], dim=1)
 
-class CrossAttnUpBlockGandlf(CrossAttnUpBlock):
+            hidden_states = resnet(hidden_states, temb)
+            hidden_states = attn(hidden_states)
+
+        if self.upsampler is not None:
+            hidden_states = self.upsampler(hidden_states, temb)
+
+        return hidden_states
+
+
+class CrossAttnUpBlockGandlf(nn.Module):
     """
     Unet's up block containing resnet, upsamplers, and self-attention blocks.
 
@@ -1005,6 +1222,27 @@ class CrossAttnUpBlockGandlf(CrossAttnUpBlock):
         else:
             self.upsampler = None
 
+    def forward(
+        self,
+        hidden_states: torch.Tensor,
+        res_hidden_states_list: list[torch.Tensor],
+        temb: torch.Tensor,
+        context: torch.Tensor | None = None,
+    ) -> torch.Tensor:
+        for resnet, attn in zip(self.resnets, self.attentions):
+            # pop res hidden states
+            res_hidden_states = res_hidden_states_list[-1]
+            res_hidden_states_list = res_hidden_states_list[:-1]
+            hidden_states = torch.cat([hidden_states, res_hidden_states], dim=1)
+
+            hidden_states = resnet(hidden_states, temb)
+            hidden_states = attn(hidden_states, context=context)
+
+        if self.upsampler is not None:
+            hidden_states = self.upsampler(hidden_states, temb)
+
+        return hidden_states
+
 
 def get_down_block(
     spatial_dims: int,
@@ -1070,6 +1308,7 @@ def get_down_block(
             out_channels=out_channels,
             temb_channels=temb_channels,
             conv=conv,
+            pool=pool,
             num_res_blocks=num_res_blocks,
             norm_num_groups=norm_num_groups,
             norm_eps=norm_eps,
@@ -1232,6 +1471,12 @@ def get_timestep_embedding(
     return embedding
 
 
+def convert_to_tuple(value: Any, size: int) -> Tuple[int, ...]:
+    if isinstance(value, Iterable):
+        return tuple(value)
+    return (value,) * size
+
+
 class DDPM(ModelBase):
     def __init__(self, model_config: Type[AbstractModelConfig]) -> None:
         ModelBase.__init__(self, model_config)
@@ -1247,11 +1492,19 @@ class DDPM(ModelBase):
         transformer_num_layers = model_config.architecture["transformer_num_layers"]
         cross_attention_dim = model_config.architecture["cross_attention_dim"]
         upcast_attention = model_config.architecture["upcast_attention"]
-        dropout_cattn = model_config.architecture["cross_attention_dropout "]
+        dropout_cattn = model_config.architecture["cross_attention_dropout"]
 
         self.num_class_embeds = model_config.architecture["num_class_embeds"]
         self.with_conditioning = model_config.architecture["with_conditioning"]
         self.block_out_channels = num_channels
+
+        if isinstance(num_head_channels, int):
+            num_head_channels = convert_to_tuple(
+                num_head_channels, len(attention_levels)
+            )
+
+        if isinstance(num_res_blocks, int):
+            num_res_blocks = convert_to_tuple(num_res_blocks, len(num_channels))
 
         self.conv_in = self.Conv(
             in_channels=self.n_channels,
