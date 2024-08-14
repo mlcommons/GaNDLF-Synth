@@ -39,6 +39,9 @@ dataloader_config:
     num_workers: 0
     pin_memory: false
     shuffle: false
+inference_parameters:
+  batch_size: 1
+  n_images_to_generate: 1
 in_memory: false
 modality: rad
 model_config:
