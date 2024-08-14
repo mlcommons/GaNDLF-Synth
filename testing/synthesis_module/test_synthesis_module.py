@@ -290,3 +290,35 @@ def test_training_inference_vqvae():
             dataframe_reconstruction=example_dataframe,
         )
         inference_manager.run_inference()
+
+
+def test_train_inference_ddpm():
+    test_name = inspect.currentframe().f_code.co_name
+    with ContextManagerTests(
+        test_dir=TEST_DIR, test_name=test_name, output_dir=OUTPUT_DIR
+    ):
+        test_config_path = os.path.join(TEST_DIR, "syntheis_module_config_ddpm.yaml")
+        config_manager = ConfigManager(test_config_path)
+        global_config, model_config = config_manager.prepare_configs()
+        example_dataframe = pd.read_csv(CSV_PATH)
+        training_manager = TrainingManager(
+            train_dataframe=example_dataframe,
+            val_dataframe=example_dataframe,
+            test_dataframe=example_dataframe,
+            output_dir=OUTPUT_DIR,
+            global_config=global_config,
+            model_config=model_config,
+            resume=False,
+            reset=False,
+            device=DEVICE,
+        )
+        training_manager.run_training()
+
+        inference_manager = InferenceManager(
+            global_config=global_config,
+            model_config=model_config,
+            model_dir=OUTPUT_DIR,
+            output_dir=INFERENCE_OUTPUT_DIR,
+            device=DEVICE,
+        )
+        inference_manager.run_inference()
