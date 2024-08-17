@@ -80,14 +80,15 @@ class UnlabeledDDPMModule(SynthesisModule):
         assert (
             n_images_to_generate is not None
         ), "Number of images to generate is required during the inference pass."
+
         noise = torch.randn(
             n_images_to_generate,
-            self.model_config.n_dimensions,
+            self.model_config.n_channels,
             *self.model_config.tensor_shape,
             device=self.device,
         )
         self.scheduler.set_timesteps(
-            num_inference_steps=self.model_config.architecture["num_train_timesteps"]
+            num_inference_steps=self.model_config.architecture["num_eval_timesteps"]
         )
         generated_images = self.inferer.sample(
             input_noise=noise, diffusion_model=self.model, scheduler=self.scheduler

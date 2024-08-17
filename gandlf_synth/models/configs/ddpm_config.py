@@ -23,6 +23,7 @@ class DDPMConfig(AbstractModelConfig):
             "num_res_blocks": (2, 2, 2, 2),
             "num_channels": (32, 64, 64, 64),
             "num_train_timesteps": 1000,
+            "num_eval_timesteps": 1000,
             "attention_levels": (False, False, True, True),
             "norm_num_groups": 32,
             "norm_eps": 1e-6,
