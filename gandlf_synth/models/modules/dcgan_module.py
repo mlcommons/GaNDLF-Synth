@@ -22,129 +22,70 @@ from typing import Dict, Union, List
 class UnlabeledDCGANModule(SynthesisModule):
     def __init__(self, **kwargs) -> None:
         super().__init__(**kwargs)
+        self.model: DCGAN
+        self.automatic_optimization = False
         self.train_loss_list: List[Dict[float]] = []
         self.val_loss_list: List[Dict[float]] = []
         self.test_loss_list: List[Dict[float]] = []
 
     def training_step(self, batch: object, batch_idx: int) -> torch.Tensor:
-        real_images = batch
+        real_images: torch.Tensor = batch
         batch_size = real_images.shape[0]
         latent_vector = generate_latent_vector(
             batch_size,
             self.model_config.architecture["latent_vector_size"],
             self.model_config.n_dimensions,
             self.device,
-        )
-        # DISCRIMINATOR PASS WITH REAL IMAGES
-        self.optimizers["disc_optimizer"].zero_grad(set_to_none=True)
-        label_real = torch.full(
-            (batch_size, 1), fill_value=1.0, dtype=torch.float, device=self.device
-        )
-        preds_real = self.model.discriminator(real_images)
-        disc_loss_real = self.losses["disc_loss"](preds_real, label_real)
-        backward_pass(
-            loss=disc_loss_real,
-            optimizer=self.optimizers["disc_optimizer"],
-            model=self.model.discriminator,
-            amp=self.model_config.amp,
-            clip_grad=self.model_config.clip_grad,
-            clip_mode=self.model_config.clip_mode,
-        )
-
-        # DISCRIMINATOR PASS WITH FAKE IMAGES
-        label_fake = label_real.fill_(0.0)  # swap the labels for fake images
-        fake_images = self.model.generator(latent_vector)
-        preds_fake = self.model.discriminator(fake_images.detach())
-        disc_loss_fake = self.losses["disc_loss"](preds_fake, label_fake)
-        backward_pass(
-            loss=disc_loss_fake,
-            optimizer=self.optimizers["disc_optimizer"],
-            model=self.model.discriminator,
-            amp=self.model_config.amp,
-            clip_grad=self.model_config.clip_grad,
-            clip_mode=self.model_config.clip_mode,
-        )
-        loss_disc = perform_parameter_update(
-            loss=[disc_loss_real, disc_loss_fake],
-            optimizer=self.optimizers["disc_optimizer"],
-            batch_idx=batch_idx,
-        )
+        ).type_as(real_images)
+        loss_disc, loss_gen = self.losses["disc_loss"], self.losses["gen_loss"]
+        optimizer_disc, optimizer_gen = self.optimizers()
 
         # GENERATOR PASS
-        self.optimizers["gen_optimizer"].zero_grad(set_to_none=True)
-        label_real.fill_(1.0)  # swap the labels for fake images
-        preds_fake = self.model.discriminator(fake_images)
-        gen_loss = self.losses["gen_loss"](preds_fake, label_real)
-        backward_pass(
-            loss=gen_loss,
-            optimizer=self.optimizers["gen_optimizer"],
-            model=self.model.generator,
-            amp=self.model_config.amp,
-            clip_grad=self.model_config.clip_grad,
-            clip_mode=self.model_config.clip_mode,
-        )
-        gen_loss = perform_parameter_update(
-            loss=gen_loss,
-            optimizer=self.optimizers["gen_optimizer"],
-            batch_idx=batch_idx,
-        )
+        self.toggle_optimizer(optimizer_gen)
+        fake_images = self.model.generator(latent_vector)
+        label_real = torch.ones(real_images.size(0), 1).type_as(real_images)
+        gen_loss = loss_gen(self.model.discriminator(fake_images), label_real)
+        self.manual_backward(gen_loss)
+        optimizer_gen.step()
+        optimizer_gen.zero_grad(set_to_none=True)
+        self.untoggle_optimizer(optimizer_gen)
 
-        # Scheduler step
-        if self.schedulers is not None:
-            if self.schedulers["gen_scheduler"] is not None:
-                self.schedulers["gen_scheduler"].step()
-            # Scheduler step
-            if self.schedulers["disc_scheduler"] is not None:
-                self.schedulers["disc_scheduler"].step()
-        self._log("disc_loss", loss_disc)
-        self._log("gen_loss", gen_loss)
+        # DISCRIMINATOR PASS
+        self.toggle_optimizer(optimizer_disc)
+        # real labels
+        label_real = torch.ones(real_images.size(0), 1).type_as(real_images)
+        # fake labels
+        label_fake = torch.zeros(real_images.size(0), 1).type_as(real_images)
+        # get the predictions and calculate the loss for the real images
+        preds_real = self.model.discriminator(real_images)
+        disc_loss_real = loss_disc(preds_real, label_real)
+        # get the predictions and calculate the loss for the fake images
+        disc_loss_fake = loss_disc(
+            self.model.discriminator(fake_images.detach()), label_fake
+        )
+        # calculate the total loss
+        total_disc_loss = (disc_loss_real + disc_loss_fake) / 2
+        self.manual_backward(total_disc_loss)
+        optimizer_disc.step()
+        optimizer_disc.zero_grad(set_to_none=True)
+        self.untoggle_optimizer(optimizer_disc)
+
+        self.log("disc_loss", total_disc_loss, on_step=True, prog_bar=True)
+        self.log("gen_loss", gen_loss, on_step=True, prog_bar=True)
         self.train_loss_list.append(
-            {"disc_loss": loss_disc.item(), "gen_loss": gen_loss.item()}
+            {"disc_loss": total_disc_loss.item(), "gen_loss": gen_loss.item()}
         )
         if self.metric_calculator is not None:
             metric_results = {}
             for metric_name, metric in self.metric_calculator.items():
                 metric_results[metric_name] = metric(real_images, fake_images.detach())
-            self._log_dict(metric_results)
+            self.log_dict(metric_results, on_step=True, prog_bar=True)
 
     # TODO does this method even have sense in that form?
-    @torch.no_grad
     def validation_step(self, batch: object, batch_idx: int) -> torch.Tensor:
-        real_images = batch
-        real_labels = torch.full(
-            (real_images.shape[0], 1),
-            fill_value=1.0,
-            dtype=torch.float,
-            device=self.device,
-        )
-        fake_labels = real_labels.clone().fill_(0.0)
-        batch_size = real_images.shape[0]
-        latent_vector = generate_latent_vector(
-            batch_size,
-            self.model_config.architecture["latent_vector_size"],
-            self.model_config.n_dimensions,
-            self.device,
-        )
-        generated_images = self.model.generator(latent_vector)
-        disc_preds_real = self.model.discriminator(real_images)
-        disc_preds_fake = self.model.discriminator(generated_images)
+        raise NotImplementedError("Validation step is not implemented for the DCGAN.")
 
-        disc_loss = self.losses["disc_loss"](
-            disc_preds_real, real_labels
-        ) + self.losses["disc_loss"](disc_preds_fake, fake_labels)
-        gen_loss = self.losses["gen_loss"](disc_preds_fake, real_labels)
-
-        if self.metric_calculator is not None:
-            metric_results = {}
-            for metric_name, metric in self.metric_calculator.items():
-                val_metric_name = f"val_{metric_name}"
-                metric_results[val_metric_name] = metric(real_images, generated_images)
-            self._log_dict(metric_results)
-        self._log("val_disc_loss", disc_loss)
-        self._log("val_gen_loss", gen_loss)
-
-    # TODO does this method even have sense in that form? It's pretty much the same
-    # as the validation step
+    # TODO move the inference here
     @torch.no_grad
     def test_step(self, batch: object, batch_idx: int) -> torch.Tensor:
         real_images = batch
@@ -194,7 +135,7 @@ class UnlabeledDCGANModule(SynthesisModule):
         self._log("test_disc_loss", disc_loss)
         self._log("test_gen_loss", gen_loss)
 
-    @torch.no_grad
+    # TODO move this method either as only forward OR test for the trianer to run
     def inference_step(self, **kwargs) -> torch.Tensor:
         n_images_to_generate = kwargs.get("n_images_to_generate", None)
         assert (
@@ -239,7 +180,7 @@ class UnlabeledDCGANModule(SynthesisModule):
         gen_loss = get_loss(self.model_config.losses["generator"])
         return {"disc_loss": disc_loss, "gen_loss": gen_loss}
 
-    def _initialize_optimizers(
+    def configure_optimizers(
         self,
     ) -> Union[torch.optim.Optimizer, Dict[str, torch.optim.Optimizer]]:
         disc_optimizer = get_optimizer(
@@ -250,7 +191,7 @@ class UnlabeledDCGANModule(SynthesisModule):
             model_params=self.model.generator.parameters(),
             optimizer_parameters=self.model_config.optimizers["generator"],
         )
-        return {"disc_optimizer": disc_optimizer, "gen_optimizer": gen_optimizer}
+        return [disc_optimizer, gen_optimizer]
 
     def _initialize_schedulers(
         self,

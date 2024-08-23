@@ -23,11 +23,9 @@ class ModuleFactory:
     def __init__(
         self,
         model_config: Type[AbstractModelConfig],
-        logger: Logger,
         model_dir: str,
         metric_calculator: Optional[Dict[str, object]] = None,
         postprocessing_transforms: Optional[List[Callable]] = None,
-        device: str = "cpu",
     ):
         """
         Initialize the ModuleFactory.
@@ -42,11 +40,9 @@ class ModuleFactory:
         """
 
         self.model_config = model_config
-        self.logger = logger
         self.model_dir = model_dir
         self.metric_calculator = metric_calculator
         self.postprocessing_transforms = postprocessing_transforms
-        self.device = torch_device(device)
 
     def _parse_module_name(self) -> str:
         """
@@ -74,9 +70,7 @@ class ModuleFactory:
         )
         return self.AVAILABE_MODULES[module_name](
             model_config=self.model_config,
-            logger=self.logger,
             model_dir=self.model_dir,
             metric_calculator=self.metric_calculator,
             postprocessing_transforms=self.postprocessing_transforms,
-            device=self.device,
         )

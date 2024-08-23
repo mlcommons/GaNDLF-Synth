@@ -3,12 +3,12 @@ import io
 import tarfile
 import hashlib
 from logging import Logger
-from abc import ABC, abstractmethod
+from abc import ABC, abstractmethod, ABCMeta
 
 import torch
 from torch import nn
 from torch import optim
-
+import pytorch_lightning as pl
 from GANDLF.utils.generic import get_git_hash, get_unique_timestamp
 
 from gandlf_synth.version import __version__
@@ -19,20 +19,18 @@ from gandlf_synth.utils.compute import ensure_device_placement
 from typing import Dict, Union, Optional, Type, List, Callable
 
 
-class SynthesisModule(ABC):
+class SynthesisModule(pl.LightningModule, metaclass=ABCMeta):
     """Abstract class for a synthesis module. It wraps the model architecture
     and logic assocaited with different steps (i.e. forward pass, training_step etc.).
-    Greatly inspired by PyTorch Lightning.
+    Uses Pytorch Lightning as the base class, with extra functionality added on top.
     """
 
     def __init__(
         self,
         model_config: Type[AbstractModelConfig],
-        logger: Logger,
         model_dir: str,
         metric_calculator: Optional[Dict[str, Callable]] = None,
         postprocessing_transforms: Optional[List[Callable]] = None,
-        device: str = "cpu",
     ) -> None:
         """Initialize the synthesis module.
 
@@ -42,94 +40,20 @@ class SynthesisModule(ABC):
             model_dir (str) : Model and results output directory.
             metric_calculator (Dict[str,Callable],optional): Metric calculator object.
             postprocessing_transforms (List[Callable], optional): Postprocessing transformations to apply.
-            device (str, optional): Device to perform computations on. Defaults to "cpu".
         """
 
         super().__init__()
+
         # This is my idea for now, we can change it later.
         self.model_config = model_config
-        self.logger = logger
         self.model_dir = model_dir
         self.metric_calculator = metric_calculator
         self.postprocessing_transforms = postprocessing_transforms
-        self.device = torch.device(device)
         self.model = self._initialize_model()
-        self.optimizers = self._initialize_optimizers()
         self.losses = self._initialize_losses()
-        self.schedulers = self._initialize_schedulers()
         # Ensure the objects are placed on the device.
         self.model = ensure_device_placement(self.model, self.device)
         self.losses = ensure_device_placement(self.losses, self.device)
-
-    @abstractmethod
-    def training_step(self, batch: object, batch_idx: int) -> torch.Tensor:
-        """
-        Training step for the synthesis module.
-
-        Args:
-            batch: A batch of data.
-            batch_idx (int): Index of the batch.
-        Returns:
-            loss (torch.Tensor): Loss value.
-        """
-
-        pass
-
-    @abstractmethod
-    @torch.no_grad
-    def validation_step(self, batch: object, batch_idx: int) -> torch.Tensor:
-        """
-        Validation step for the synthesis module.
-
-        Args:
-            batch: A batch of data.
-            batch_idx: Index of the batch.
-        Returns:
-            loss (torch.Tensor): Loss value.
-        """
-
-        pass
-
-    @abstractmethod
-    @torch.no_grad
-    def test_step(self, **kwargs) -> torch.Tensor:
-        """
-        Inference step for the synthesis module.
-
-        Args:
-            kwargs: Key-word arguments.
-        Returns:
-            output: Model output.
-        """
-        pass
-
-    @abstractmethod
-    @torch.no_grad
-    def inference_step(self, **kwargs) -> torch.Tensor:
-        """
-        Inference step for the synthesis module.
-
-        Args:
-            kwargs: Key-word arguments.
-        Returns:
-            output: Model output.
-        """
-        pass
-
-    @abstractmethod
-    def forward(self, *args, **kwargs) -> torch.Tensor:
-        """
-        Forward pass for the synthesis module.
-
-        Args:
-            x: Input data.
-        Returns:
-            output: Model output.
-        """
-        # Not sure if the construction is correct, probably in some
-        # cases this class will accept multiple inputs.
-
-        pass
 
     @abstractmethod
     def _initialize_model(self) -> ModelBase:
@@ -138,22 +62,6 @@ class SynthesisModule(ABC):
 
         Returns:
             model (ModelBase): Model for the synthesis module.
-        """
-        pass
-
-    @abstractmethod
-    def _initialize_optimizers(
-        self,
-    ) -> Union[optim.Optimizer, Dict[str, optim.Optimizer]]:
-        """
-        Initialize the optimizer (or optimizers) for the synthesis module.
-        Multiple optimizers can be defined for different parts of the model
-        (e.g. generator and discriminator). Those will be initialized from the
-        self.params dictionary probably.
-
-        Returns:
-            optimizer (torch.optim.Optimizer or dict): Optimizer(s) for the model.
-
         """
         pass
 
@@ -167,26 +75,6 @@ class SynthesisModule(ABC):
 
         Returns:
             loss (torch.nn.Module or dict): Loss function(s) for the model.
-        """
-        pass
-
-    @abstractmethod
-    def _initialize_schedulers(
-        self,
-    ) -> Union[
-        optim.lr_scheduler._LRScheduler,
-        Dict[str, optim.lr_scheduler._LRScheduler],
-        None,
-    ]:
-        """
-        Initialize the learning rate scheduler (or schedulers) for the synthesis module.
-        Multiple schedulers can be defined for different parts of the model
-        (e.g. generator and discriminator). Those will be initialized from the
-        self.params dictionary probably.
-
-        Returns:
-            scheduler (torch.optim.lr_scheduler._LRScheduler or dict or None): Scheduler(s) for
-        the model if any.
         """
         pass
 
@@ -346,76 +234,3 @@ class SynthesisModule(ABC):
         for self.data_transform in self.postprocessing_transforms:
             data_to_transform = self.data_transform(data_to_transform)
         return data_to_transform
-
-    def _log(self, value_name: str, value_to_log: float) -> None:
-        """
-        Log the value to the logger.
-
-        Args:
-            value_name: Name of the value to log.
-            value_to_log: Value to log.
-        """
-        # TODO : We need to think on that, I was wondering if we can use the main program logger
-        # that we used in GaNDLF for logging the values. Maybe we should also wait for Sylwia's
-        # port of new logging in main GaDLF. Anyway the logging should be done in the same way
-        # for all the modules.
-        self.logger.info(f"{value_name}: {value_to_log}")
-
-    def _log_dict(self, dict_to_log: Dict[str, float]) -> None:
-        """
-        Log the dictionary of values to the logger.
-
-        Args:
-            dict_to_log: Dictionary of values to log.
-        """
-        for key, value in dict_to_log.items():
-            self._log(10, f"{key}: {value}")
-
-    def _on_train_epoch_start(self, epoch: int) -> None:
-        """
-        Function to be called at the start of the epoch.
-
-        Args:
-            epoch (int): Current epoch.
-        """
-        pass
-
-    def _on_validation_epoch_start(self, epoch: int) -> None:
-        """
-        Function to be called at the start of the validation.
-
-        Args:
-            epoch (int): Current epoch.
-        """
-        pass
-
-    def _on_test_start(self) -> None:
-        """
-        Function to be called at the start of the test.
-
-        """
-        pass
-
-    def _on_train_epoch_end(self, epoch: int) -> None:
-        """
-        Function to be called at the end of the epoch.
-
-        Args:
-            epoch (int): Current epoch.
-        """
-        pass
-
-    def _on_validation_epoch_end(self, epoch: int) -> None:
-        """
-        Function to be called at the end of the validation.
-
-        Args:
-            epoch (int): Current epoch.
-        """
-        pass
-
-    def _on_test_end(self) -> None:
-        """
-        Function to be called at the end of the test.
-        """
-        pass

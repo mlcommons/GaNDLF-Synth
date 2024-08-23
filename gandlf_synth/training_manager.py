@@ -6,6 +6,7 @@ from warnings import warn
 
 import torch
 import pandas as pd
+import pytorch_lightning as pl
 
 from gandlf_synth.models.configs.config_abc import AbstractModelConfig
 from gandlf_synth.models.modules.module_factory import ModuleFactory
@@ -39,7 +40,6 @@ class TrainingManager:
         model_config: Type[AbstractModelConfig],
         resume: bool,
         reset: bool,
-        device: str,
         val_dataframe: Optional[pd.DataFrame] = None,
         test_dataframe: Optional[pd.DataFrame] = None,
         val_ratio: Optional[float] = 0,
@@ -56,7 +56,6 @@ class TrainingManager:
             model_config (Type[AbstractModelConfig]): The model configuration object.
             resume (bool): Whether the previous run will be resumed or not.
             reset (bool): Whether the previous run will be reset or not.
-            device (str): The device to perform computations on.
             val_dataframe (pd.DataFrame, optional): The validation dataframe. Defaults to None.
             test_dataframe (pd.DataFrame, optional): The test dataframe. Defaults to None.
             val_ratio (float, optional): The percentage of data to be used for validation,
@@ -79,7 +78,6 @@ class TrainingManager:
         self.model_config = model_config
         self.resume = resume
         self.reset = reset
-        self.device = device
 
         self._prepare_output_dir()
         self.logger = prepare_logger(self.LOGGER_NAME, self.output_dir)
@@ -100,10 +98,8 @@ class TrainingManager:
         # TODO move it to the main_run function, as well as logger initialization
         module_factory = ModuleFactory(
             model_config=self.model_config,
-            logger=self.logger,
             model_dir=self.output_dir,
             metric_calculator=metric_calculator,
-            device=self.device,
             postprocessing_transforms=prepare_postprocessing_transforms(
                 global_config=self.global_config
             ),
@@ -111,6 +107,8 @@ class TrainingManager:
         self.module = module_factory.get_module()
         if self.resume:
             self.module.load_checkpoint(custom_checkpoint_suffix)
+        # TODO this will be expanded in the future, now just a dummy to run the training
+        self.trainer = pl.Trainer(max_epochs=self.global_config["num_epochs"])
 
     def _warn_user(self):
         """
@@ -170,11 +168,7 @@ class TrainingManager:
         assert (
             self.val_ratio + self.test_ratio <= 1
         ), "Validation and test ratios must sum up to less than or equal to 1"
-        assert self.device in ["cpu", "cuda"], "Device must be either 'cpu' or 'cuda'"
-        if self.device == "cuda":
-            assert (
-                torch.cuda.is_available()
-            ), "CUDA is not available. Please use 'cpu' or install CUDA."
+
         if self.reset and self.resume:
             warn(
                 "Both reset and resume are set to True. Resume will take precedence.",
@@ -299,62 +293,65 @@ class TrainingManager:
         """
         Train the model.
         """
-        # CAUTION - keep careful when dealing with multiple batches and split images (slices)
-        self.module.save_checkpoint(suffix="_start")
-        num_epochs = self.global_config["num_epochs"]
-        for epoch in range(num_epochs):
-            self.module._on_train_epoch_start(epoch)
-            train_progress_bar = prepare_progress_bar(
-                self.train_dataloader,
-                len(self.train_dataloader),
-                f"Training epoch {epoch}/{num_epochs}",
-            )
-
-            for batch_idx, batch in train_progress_bar:
-                assert_input_correctness(
-                    configured_input_shape=self.model_config.tensor_shape,
-                    configured_n_channels=self.model_config.n_channels,
-                    batch_idx=batch_idx,
-                    batch=batch,
-                )
-                batch = ensure_device_placement(batch, self.device)
-                self.module.training_step(batch, batch_idx)
-            self.module._on_train_epoch_end(epoch)
-            if self.val_dataloader is not None:
-                val_progress_bar = prepare_progress_bar(
-                    self.val_dataloader,
-                    len(self.val_dataloader),
-                    f"Validation epoch {epoch}/{num_epochs}",
-                )
-                self.module._on_validation_epoch_start(epoch)
-                for batch_idx, batch in val_progress_bar:
-                    assert_input_correctness(
-                        configured_input_shape=self.model_config.tensor_shape,
-                        configured_n_channels=self.model_config.n_channels,
-                        batch_idx=batch_idx,
-                        batch=batch,
-                    )
-                    batch = ensure_device_placement(batch, self.device)
-                    self.module.validation_step(batch, batch_idx)
-                self.module._on_validation_epoch_end(epoch)
-            if self.global_config["save_model_every_n_epochs"] != -1 and (
-                epoch % self.global_config["save_model_every_n_epochs"] == 0
-            ):
-                self.module.save_checkpoint(suffix=f"epoch-{epoch}")
-            self.module.save_checkpoint(suffix=f"latest")
+        self.trainer.fit(self.module, self.train_dataloader, self.val_dataloader)
         if self.test_dataloader is not None:
-            test_progress_bar = prepare_progress_bar(
-                self.test_dataloader, len(self.test_dataloader), "Testing"
-            )
+            self.trainer.test(self.module, self.test_dataloader)
+        # CAUTION - keep careful when dealing with multiple batches and split images (slices)
+        # self.module.save_checkpoint(suffix="_start")
+        # num_epochs = self.global_config["num_epochs"]
+        # for epoch in range(num_epochs):
+        #     self.module._on_train_epoch_start(epoch)
+        #     train_progress_bar = prepare_progress_bar(
+        #         self.train_dataloader,
+        #         len(self.train_dataloader),
+        #         f"Training epoch {epoch}/{num_epochs}",
+        #     )
 
-            self.module._on_test_start()
-            for batch_idx, batch in test_progress_bar:
-                assert_input_correctness(
-                    configured_input_shape=self.model_config.tensor_shape,
-                    configured_n_channels=self.model_config.n_channels,
-                    batch_idx=batch_idx,
-                    batch=batch,
-                )
-                batch = ensure_device_placement(batch, self.device)
-                self.module.test_step(batch, batch_idx)
-            self.module._on_test_end()
+        #     for batch_idx, batch in train_progress_bar:
+        #         assert_input_correctness(
+        #             configured_input_shape=self.model_config.tensor_shape,
+        #             configured_n_channels=self.model_config.n_channels,
+        #             batch_idx=batch_idx,
+        #             batch=batch,
+        #         )
+        #         batch = ensure_device_placement(batch, self.device)
+        #         self.module.training_step(batch, batch_idx)
+        #     self.module._on_train_epoch_end(epoch)
+        #     if self.val_dataloader is not None:
+        #         val_progress_bar = prepare_progress_bar(
+        #             self.val_dataloader,
+        #             len(self.val_dataloader),
+        #             f"Validation epoch {epoch}/{num_epochs}",
+        #         )
+        #         self.module._on_validation_epoch_start(epoch)
+        #         for batch_idx, batch in val_progress_bar:
+        #             assert_input_correctness(
+        #                 configured_input_shape=self.model_config.tensor_shape,
+        #                 configured_n_channels=self.model_config.n_channels,
+        #                 batch_idx=batch_idx,
+        #                 batch=batch,
+        #             )
+        #             batch = ensure_device_placement(batch, self.device)
+        #             self.module.validation_step(batch, batch_idx)
+        #         self.module._on_validation_epoch_end(epoch)
+        #     if self.global_config["save_model_every_n_epochs"] != -1 and (
+        #         epoch % self.global_config["save_model_every_n_epochs"] == 0
+        #     ):
+        #         self.module.save_checkpoint(suffix=f"epoch-{epoch}")
+        #     self.module.save_checkpoint(suffix=f"latest")
+        # if self.test_dataloader is not None:
+        #     test_progress_bar = prepare_progress_bar(
+        #         self.test_dataloader, len(self.test_dataloader), "Testing"
+        #     )
+
+        #     self.module._on_test_start()
+        #     for batch_idx, batch in test_progress_bar:
+        #         assert_input_correctness(
+        #             configured_input_shape=self.model_config.tensor_shape,
+        #             configured_n_channels=self.model_config.n_channels,
+        #             batch_idx=batch_idx,
+        #             batch=batch,
+        #         )
+        #         batch = ensure_device_placement(batch, self.device)
+        #         self.module.test_step(batch, batch_idx)
+        #     self.module._on_test_end()
