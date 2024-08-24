@@ -21,7 +21,7 @@ def main_run(
     val_ratio: Optional[float] = None,
     test_ratio: Optional[float] = None,
     inference_output_dir: Optional[str] = None,
-    custom_checkpoint_suffix: Optional[str] = None,
+    custom_checkpoint_path: Optional[str] = None,
 ):
     """
     Main function to execute training or inference.
@@ -52,7 +52,7 @@ def main_run(
         test_ratio (float): Ratio of the test data to use for training. If
     specified along with test_csv_path, the data from test_csv_path will be used.
     Defaults to None.
-        custom_checkpoint_suffix (str): Custom suffix to load the specific checkpoint either for
+        custom_checkpoint_path (str): Custom path to load the specific checkpoint either for
     training or inference. During training, it takes action only when `resume` is set to True.
     """
 
@@ -86,7 +86,7 @@ def main_run(
             device=device,
             val_ratio=val_ratio,
             test_ratio=test_ratio,
-            custom_checkpoint_suffix=custom_checkpoint_suffix,
+            custom_checkpoint_path=custom_checkpoint_path,
         )
         training_manager.run_training()
 
@@ -101,6 +101,6 @@ def main_run(
             output_dir=inference_output_dir,
             device=device,
             dataframe_reconstruction=main_input_dataframe,
-            custom_checkpoint_suffix=custom_checkpoint_suffix,
+            custom_checkpoint_path=custom_checkpoint_path,
         )
         inference_manager.run_inference()
