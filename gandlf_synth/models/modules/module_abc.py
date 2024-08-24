@@ -113,17 +113,31 @@ class SynthesisModule(pl.LightningModule, metaclass=ABCMeta):
             sync_dist=True,
         )
 
-    def _epoch_log(self, dict_to_log: Dict[str, float]) -> None:
+    def _epoch_log(self, object_to_log: List[Dict[str, float]]) -> None:
         """
-        Log the value to the logger at the end of the epoch.
-        This writes the values to the progress bar and to the log file.
-        """
+        Log the accumulated tracked value to the logger at the end of the epoch.
+        Averages the tracked values and logs them to the progress bar and the log file.
+        At the end, empties the tracked values.
 
-        self.log_dict(
-            dict_to_log,
-            prog_bar=True,
-            on_epoch=True,
-            logger=True,
-            on_step=False,
-            sync_dist=True,
-        )
+        Args:
+            object_to_log (List[Dict[str, float]]): List of dictionaries containing tracked values.
+        """
+        if len(object_to_log) > 0:
+            avg_results = {}
+            for tracked_value_name in object_to_log[0].keys():
+                avg_results[tracked_value_name] = sum(
+                    [
+                        tracked_value[tracked_value_name]
+                        for tracked_value in object_to_log
+                    ]
+                ) / len(object_to_log)
+
+            self.log_dict(
+                avg_results,
+                prog_bar=True,
+                on_step=False,
+                logger=True,
+                on_epoch=True,
+                sync_dist=True,
+            )
+            object_to_log.clear()

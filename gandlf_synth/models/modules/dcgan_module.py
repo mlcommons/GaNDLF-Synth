@@ -24,8 +24,6 @@ class UnlabeledDCGANModule(SynthesisModule):
         self.model: DCGAN
         self.automatic_optimization = False
         self.train_loss_list: List[Dict[float]] = []
-        self.val_loss_list: List[Dict[float]] = []
-        self.test_loss_list: List[Dict[float]] = []
 
     def training_step(self, batch: object, batch_idx: int) -> torch.Tensor:
         real_images: torch.Tensor = batch
@@ -183,15 +181,7 @@ class UnlabeledDCGANModule(SynthesisModule):
     # TODO can we make it nicer? It's a bit of a mess, plus maybe saving can be
     # done in parallel?
     def on_train_epoch_end(self) -> None:
-        avg_disc_loss = sum([loss["disc_loss"] for loss in self.train_loss_list]) / len(
-            self.train_loss_list
-        )
-        avg_gen_loss = sum([loss["gen_loss"] for loss in self.train_loss_list]) / len(
-            self.train_loss_list
-        )
-        loss_dict = {"disc_loss": avg_disc_loss, "gen_loss": avg_gen_loss}
-
-        self._epoch_log(loss_dict)
+        self._epoch_log(self.train_loss_list)
 
         eval_save_interval = self.model_config.save_eval_images_every_n_epochs
         if eval_save_interval > 0 and self.current_epoch % eval_save_interval == 0:
