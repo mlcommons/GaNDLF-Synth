@@ -1,3 +1,4 @@
+import torch
 import numpy as np
 import SimpleITK as sitk
 
@@ -22,3 +23,22 @@ def save_single_image(
     is_vector = dimensionality == 2
     sitk_image = sitk.GetImageFromArray(image.squeeze(), isVector=is_vector)
     sitk.WriteImage(sitk_image, image_path)
+
+
+def prepare_images_for_saving(
+    generated_images: torch.Tensor, n_dimensions: int
+) -> np.ndarray:
+    """
+    Prepare the generated images for saving, permuting the dimensions and
+    converting them to numpy arrays for saving with SimpleITK.
+
+    Args:
+        generated_images (torch.Tensor): The generated images.
+        n_dimensions (int): The number of dimensions of the images.
+    Returns:
+        np.ndarray: The generated images prepared for saving.
+    """
+    if n_dimensions == 2:
+        return generated_images.permute(0, 2, 3, 1).cpu().numpy()
+    elif n_dimensions == 3:
+        return generated_images.permute(0, 2, 3, 4, 1).cpu().numpy()
