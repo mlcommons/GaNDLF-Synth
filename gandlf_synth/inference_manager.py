@@ -1,6 +1,7 @@
 import os
 import pandas as pd
 
+import torch
 from torch.utils.data import DataLoader
 import lightning.pytorch as pl
 
@@ -11,14 +12,71 @@ from gandlf_synth.utils.managers_utils import (
     prepare_logger,
     prepare_postprocessing_transforms,
 )
-from typing import Optional, Type
+from gandlf_synth.utils.io_utils import prepare_images_for_saving, save_single_image
+from typing import Optional, Type, Any, Literal, Sequence
 
 
 class CustomPredictionImageSaver(pl.callbacks.BasePredictionWriter):
     # TODO here it needs to save images
     # ensure that it properly saves the images to inference output dir
     # ensure that it save images with correct class label in case of labeled inference
-    pass
+    def __init__(
+        self,
+        output_dir: str,
+        modality: Literal["rad", "histo"],
+        labeling_paradigm: Literal["labeled", "unlabeled"],
+        write_interval: Literal["batch", "epoch", "batch_and_epoch"] = "batch",
+    ):
+        """
+        Initialize prediction saver module.
+        This module will save the predictions to the output directory at the
+        end of each inference step.
+
+        Args:
+            output_dir (str): The output directory where the predictions will be saved.
+            modality (Literal["rad", "histo"]): The modality of the images.
+            labeling_paradigm (Literal["labeled", "unlabeled"]): The labeling paradigm.
+            write_interval (Literal["batch", "epoch", "batch_and_epoch"], optional): The interval
+        """
+        super().__init__(write_interval)
+        self.output_dir = output_dir
+        self.labeling_paradigm = labeling_paradigm
+        self.modality = modality
+
+    def _save_images(
+        self,
+        images: torch.Tensor,
+        batch_idx: int,
+        modality: str,
+        labels: Optional[Sequence[int]] = None,
+    ):
+        n_dimensions = 2 if images.dim() == 4 else 3
+        batch_size = images.size(0)
+        images_to_save = prepare_images_for_saving(images, n_dimensions=n_dimensions)
+        for idx, image in enumerate(images_to_save):
+            image_save_path = os.path.join(
+                self.output_dir, f"generated_image_{batch_idx*batch_size+idx}"
+            )
+            if labels is not None:
+                image_save_path += f"_label_{labels[idx]}"
+            save_single_image(image, image_save_path, modality, n_dimensions)
+
+    def write_on_batch_end(
+        self,
+        trainer: "pl.Trainer",
+        pl_module: "pl.LightningModule",
+        prediction: Any,
+        batch_indices: Optional[Sequence[int]],
+        batch: Any,
+        batch_idx: int,
+        dataloader_idx: int,
+    ) -> None:
+        if self.labeling_paradigm == "labeled":
+            images, labels = prediction
+            self._save_images(images, batch_idx, self.modality, labels)
+        else:
+            images = prediction
+            self._save_images(images, batch_idx, self.modality)
 
 
 class InferenceManager:
@@ -78,7 +136,15 @@ class InferenceManager:
         inference_logger = pl.loggers.CSVLogger(
             self.output_dir, name="Inference_logs", flush_logs_every_n_steps=10
         )
-        self.trainer = pl.Trainer(logger=inference_logger)
+        prediction_saver_callback = CustomPredictionImageSaver(
+            output_dir=self.output_dir,
+            modality=self.global_config["modality"],
+            labeling_paradigm=self.model_config.labeling_paradigm,
+            write_interval="batch",
+        )
+        self.trainer = pl.Trainer(
+            logger=inference_logger, callbacks=[prediction_saver_callback]
+        )
         self.custom_checkpoint_path = custom_checkpoint_path
         self.checkpoint_path = self._determine_checkpoint_to_load()
 
