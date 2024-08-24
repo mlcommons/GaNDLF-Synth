@@ -4,10 +4,10 @@ from torch import nn
 from gandlf_synth.models.architectures.base_model import ModelBase
 from gandlf_synth.models.architectures.vqvae import VQVAE
 from gandlf_synth.models.modules.module_abc import SynthesisModule
-from gandlf_synth.utils.compute import backward_pass, perform_parameter_update
 from gandlf_synth.optimizers import get_optimizer
 from gandlf_synth.losses import get_loss
 from gandlf_synth.schedulers import get_scheduler
+
 
 from typing import Dict, Union, List, Tuple
 
@@ -122,9 +122,15 @@ class UnlabeledVQVAEModule(SynthesisModule):
         return VQVAE(self.model_config)
 
     def configure_optimizers(self):
-        return get_optimizer(
+        optimizer = get_optimizer(
             self.model.parameters(), optimizer_parameters=self.model_config.optimizers
         )
+        if self.model_config.schedulers is not None:
+            scheduler = get_scheduler(
+                optimizer, scheduler_parameters=self.model_config.schedulers
+            )
+            return {"optimizer": optimizer, "lr_scheduler": scheduler}
+        return optimizer
 
     def _initialize_losses(self) -> Union[nn.Module, Dict[str, nn.Module]]:
         return get_loss(self.model_config.losses)
