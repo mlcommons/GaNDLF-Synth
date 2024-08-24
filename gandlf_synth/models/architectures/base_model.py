@@ -34,7 +34,6 @@ class ModelBase(nn.Module):
         self.model_name = model_config.model_name
         self.n_dimensions = model_config.n_dimensions
         self.n_channels = model_config.n_channels
-        self.amp = model_config.amp
         self.norm_type = model_config.norm_type
         self.linear_interpolation_mode = get_linear_interpolation_mode(
             self.n_dimensions

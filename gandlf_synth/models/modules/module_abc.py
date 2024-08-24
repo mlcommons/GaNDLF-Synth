@@ -1,21 +1,14 @@
 import os
-import io
-import tarfile
-import hashlib
 from logging import Logger
-from abc import ABC, abstractmethod, ABCMeta
+from abc import abstractmethod, ABCMeta
 
 import torch
 from torch import nn
-from torch import optim
-import pytorch_lightning as pl
-from GANDLF.utils.generic import get_git_hash, get_unique_timestamp
+import lightning.pytorch as pl
 
 from gandlf_synth.version import __version__
 from gandlf_synth.models.configs.config_abc import AbstractModelConfig
 from gandlf_synth.models.architectures.base_model import ModelBase
-from gandlf_synth.utils.compute import ensure_device_placement
-
 from typing import Dict, Union, Optional, Type, List, Callable
 
 
@@ -51,9 +44,6 @@ class SynthesisModule(pl.LightningModule, metaclass=ABCMeta):
         self.postprocessing_transforms = postprocessing_transforms
         self.model = self._initialize_model()
         self.losses = self._initialize_losses()
-        # Ensure the objects are placed on the device.
-        self.model = ensure_device_placement(self.model, self.device)
-        self.losses = ensure_device_placement(self.losses, self.device)
 
     @abstractmethod
     def _initialize_model(self) -> ModelBase:
@@ -78,67 +68,28 @@ class SynthesisModule(pl.LightningModule, metaclass=ABCMeta):
         """
         pass
 
-    def save_checkpoint(self, suffix: str) -> None:
+    def get_scheduler(
+        self, optimizer: torch.optim.Optimizer
+    ) -> Union[None, torch.optim.lr_scheduler._LRScheduler]:
         """
-        Save the model checkpoint, optimizer state, scheduler state and metadata into specified run directory.
-        Pytorch-serialized object is compressed into tar.gz archive.
+        Get the scheduler for the optimizer if it is defined.
 
         Args:
-            suffix (str) : Suffix to be added to the basic archive name,
-        used mostly for versioning. This suffix SHOULD NOT contain file
-        extensions.
+            optimizer (torch.optim.Optimizer): Optimizer to get the scheduler for.
 
+        Returns:
+            scheduler (Union[None, torch.optim.lr_scheduler._LRScheduler]): Scheduler for the optimizer.
         """
+        return None
 
-        state_dict = self.model.state_dict()
-        if isinstance(self.optimizers, optim.Optimizer):
-            optimizers_state_dict = self.optimizers.state_dict()
-        else:
-            optimizers_state_dict = {
-                key: value.state_dict() for key, value in self.optimizers.items()
-            }
-        schedulers_state_dict = None
-
-        if self.schedulers is not None:
-            if isinstance(self.schedulers, optim.lr_scheduler._LRScheduler):
-                schedulers_state_dict = self.schedulers.state_dict()
-            else:
-                schedulers_state_dict = {
-                    key: value.state_dict() for key, value in self.schedulers.items()
-                }
-        timestamp = get_unique_timestamp()
-        timestamp_hash = hashlib.sha256(str(timestamp).encode("utf-8")).hexdigest()
-
-        metadata_dict = {
-            "version": __version__,
-            "git_hash": get_git_hash(),
-            "timestamp": timestamp,
-            "timestamp_hash": timestamp_hash,
-            "state_dict": state_dict,
-            "optimizers_state_dict": optimizers_state_dict,
-            "schedulers_state_dict": schedulers_state_dict,
-        }
-        state_dict_io = io.BytesIO()
-        torch_object_filename = "model-" + suffix.strip("_") + ".pt"
-        tarfile_object_filename = torch_object_filename.split(".")[0] + ".tar.gz"
-        tarfile_object_path = os.path.join(self.model_dir, tarfile_object_filename)
-        torch.save(metadata_dict, state_dict_io)
-        state_dict_io.seek(0)
-        with tarfile.open(tarfile_object_path, "w:gz") as archive:
-            tarinfo = tarfile.TarInfo(torch_object_filename)
-            tarinfo.size = len(state_dict_io.getbuffer())
-            archive.addfile(tarinfo, state_dict_io)
-
-    # TODO think on loading it, how to handle filename
-    def load_checkpoint(self, suffix: Optional[str] = None) -> None:
+    def load_checkpoint(self, checkpoint_path: Optional[str] = None) -> None:
         """
-        Load the model checkpoint, optimizer states, scheduler states and metadata from specified run directory.
-        If specieifd, add suffix to the filename to load specific ones.
+        Load the module checkpoint from specified run directory.
+        If specified, loads directly from the checkpoint path, otherwise
+        tries to load the latest checkpoint from the model directory.
 
         Args:
-            model_dir (str) : Directory with run files stored.
-            suffix (Optional[str]) : Optional suffix to be added to the filename,
-        used mostly for versioning.
+            checkpoint_path (str, optional): Path to the checkpoint file.
 
         """
 
@@ -149,77 +100,22 @@ class SynthesisModule(pl.LightningModule, metaclass=ABCMeta):
             Args:
                 output_dir (str): The output directory for the model.
             Returns:
-                suffix (Union[str,None]): The suffix of the checkpoint to load if any.
+                checkpoint_path (str): Path to the checkpoint to load.
             """
-            best_model_path_exists = os.path.exists(
-                os.path.join(output_dir, "model-best.tar.gz")
-            )
-            latest_model_path_exists = os.path.exists(
-                os.path.join(output_dir, "model-latest.tar.gz")
-            )
-            initial_model_path_exists = os.path.exists(
-                os.path.join(output_dir, "model-initial.tar.gz")
-            )
-            suffix = None
-            if best_model_path_exists:
-                suffix = "best"
-            elif latest_model_path_exists:
-                suffix = "latest"
-            elif initial_model_path_exists:
-                suffix = "initial"
-            return suffix
+            last_checkpoint_path = os.path.join(output_dir, "last.ckpt")
+            if os.path.exists(os.path.join(output_dir, "last.ckpt")):
+                return last_checkpoint_path
 
-        if suffix is None:
-            suffix = _determine_checkpoint_to_load(self.model_dir)
-        if suffix is None:
+        if checkpoint_path is None:
+            checkpoint_path = _determine_checkpoint_to_load(
+                os.path.join(self.model_dir, "checkpoints")
+            )
+        if checkpoint_path is None:
             self.logger.info(
                 "No checkpoint found in the model directory. Skipping loading the model."
             )
             return
-        MAP_LOCATION_DICT = {
-            "state_dict": self.device,
-            "optimizers_state_dict": "cpu",
-            "schedulers_state_dict": "cpu",
-            "timestamp": "cpu",
-            "timestamp_hash": "cpu",
-            "version": "cpu",
-            "git_hash": "cpu",
-        }
-        tar_file_path = os.path.join(self.model_dir, "model-" + suffix + ".tar.gz")
-        torch_object_path = os.path.basename(tar_file_path).split(".")[0] + ".pt"
-        with tarfile.open(tar_file_path, "r:gz") as archive:
-            metadata_dict = torch.load(
-                archive.extractfile(torch_object_path), map_location=MAP_LOCATION_DICT
-            )
-        timestamp = metadata_dict["timestamp"]
-        timestamp_hash = metadata_dict["timestamp_hash"]
-        git_hash = metadata_dict["git_hash"]
-        optimizers_state_dict = metadata_dict["optimizers_state_dict"]
-        self.model.load_state_dict(state_dict=metadata_dict["state_dict"])
-        if isinstance(self.optimizers, optim.Optimizer):
-            self.optimizers.load_state_dict(optimizers_state_dict)
-        else:
-            for name, optimizer in self.optimizers.items():
-                assert (
-                    name in optimizers_state_dict.keys()
-                ), f"Optimizer {name} not found in the checkpoint!"
-                optimizer.load_state_dict(optimizers_state_dict[name])
-        if self.schedulers is not None:
-            schedulers_state_dict = metadata_dict["schedulers_state_dict"]
-            if schedulers_state_dict is not None:
-                if isinstance(self.schedulers, optim.lr_scheduler._LRScheduler):
-                    self.schedulers.load_state_dict(schedulers_state_dict)
-                else:
-                    for name, scheduler in self.schedulers.items():
-                        assert (
-                            name in schedulers_state_dict.keys()
-                        ), f"Scheduler {name} not found in the checkpoint!"
-                        scheduler.load_state_dict(schedulers_state_dict[name])
-        self.logger.info(f"Model loaded from {tar_file_path}")
-        self.logger.info(f"GANDLF-Synth version: {metadata_dict['version']}")
-        self.logger.info(f"Git hash: {git_hash}")
-        self.logger.info(f"Timestamp: {timestamp}")
-        self.logger.info(f"Timestamp hash: {timestamp_hash}")
+        self.load_from_checkpoint(checkpoint_path)
 
     def _apply_postprocessing(self, data_to_transform: torch.Tensor) -> torch.Tensor:
         """
@@ -234,3 +130,35 @@ class SynthesisModule(pl.LightningModule, metaclass=ABCMeta):
         for self.data_transform in self.postprocessing_transforms:
             data_to_transform = self.data_transform(data_to_transform)
         return data_to_transform
+
+    def _step_log(self, dict_to_log: Dict[str, float]) -> None:
+        """
+        Log the value to the logger at the end of the step.
+        This writes the values to the progress bar, but not to the log file.
+
+        Args:
+            dict_to_log (dict): Dictionary of values to log.
+        """
+        self.log_dict(
+            dict_to_log,
+            prog_bar=True,
+            on_step=True,
+            logger=False,
+            on_epoch=False,
+            sync_dist=True,
+        )
+
+    def _epoch_log(self, dict_to_log: Dict[str, float]) -> None:
+        """
+        Log the value to the logger at the end of the epoch.
+        This writes the values to the progress bar and to the log file.
+        """
+
+        self.log_dict(
+            dict_to_log,
+            prog_bar=True,
+            on_epoch=True,
+            logger=True,
+            on_step=False,
+            sync_dist=True,
+        )

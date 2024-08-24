@@ -6,7 +6,7 @@ from warnings import warn
 
 import torch
 import pandas as pd
-import pytorch_lightning as pl
+import lightning.pytorch as pl
 
 from gandlf_synth.models.configs.config_abc import AbstractModelConfig
 from gandlf_synth.models.modules.module_factory import ModuleFactory
@@ -16,13 +16,12 @@ from gandlf_synth.utils.managers_utils import (
     prepare_logger,
     prepare_postprocessing_transforms,
     prepare_transforms,
-    assert_input_correctness,
-    prepare_progress_bar,
 )
-from gandlf_synth.utils.compute import ensure_device_placement
 from gandlf_synth.metrics import get_metrics
 
-from typing import Optional, Type
+from typing import Optional, Type, Union, List
+
+CUDA_VISIBLE_DEVICES = torch.cuda.device_count()
 
 
 class TrainingManager:
@@ -44,7 +43,7 @@ class TrainingManager:
         test_dataframe: Optional[pd.DataFrame] = None,
         val_ratio: Optional[float] = 0,
         test_ratio: Optional[float] = 0,
-        custom_checkpoint_suffix: Optional[str] = None,
+        custom_checkpoint_path: Optional[str] = None,
     ):
         """
         Initialize the TrainingManager.
@@ -64,7 +63,7 @@ class TrainingManager:
         remaining data will be split into training and validation data. Defaults to 0.
             test_ratio (float, optional): The percentage of data to be used for testing,
         extracted from the training dataframe. This parameter will be used if test_dataframe is None. Defaults to 0.
-            custom_checkpoint_suffix (str, optional): The custom suffix to resume training from a specific checkpoint.
+            custom_checkpoint_path (str, optional): The custom path to resume training from a specific checkpoint.
         Used only if resume is True. Defaults to None.
         """
 
@@ -81,7 +80,7 @@ class TrainingManager:
 
         self._prepare_output_dir()
         self.logger = prepare_logger(self.LOGGER_NAME, self.output_dir)
-        self._load_or_save_parameters()
+        self._load_or_save_configs()
         self._assert_parameter_correctness()
         self._warn_user()
 
@@ -106,10 +105,26 @@ class TrainingManager:
         )
         self.module = module_factory.get_module()
         if self.resume:
-            self.module.load_checkpoint(custom_checkpoint_suffix)
-        # TODO this will be expanded in the future, now just a dummy to run the training
-        self.trainer = pl.Trainer(max_epochs=self.global_config["num_epochs"])
+            self.module.load_checkpoint(custom_checkpoint_path)
+        # TODO in the future, move it to separate function which would initialize
+        # this as base logger and other loggers as well (like wandb)
+        trainer_logger = pl.loggers.CSVLogger(
+            self.output_dir, name="training_logs", flush_logs_every_n_steps=1
+        )
+        callbacks = self._prepare_callbacks()
+        self.trainer = pl.Trainer(
+            max_epochs=self.global_config["num_epochs"],
+            default_root_dir=self.output_dir,
+            logger=trainer_logger,
+            callbacks=callbacks,
+            accumulate_grad_batches=self.model_config.accumulate_grad_batches,
+            gradient_clip_algorithm=self.model_config.gradient_clip_algorithm,
+            gradient_clip_val=self.model_config.gradient_clip_val,
+            precision=self.global_config["precision"],  # default is 32
+            sync_batchnorm=True if CUDA_VISIBLE_DEVICES > 1 else False,
+        )
 
+    # TODO offload this to the logger as this clutters the stdout
     def _warn_user(self):
         """
         Warn the user about the validation and testing configuration.
@@ -155,6 +170,35 @@ class TrainingManager:
                 UserWarning,
             )
 
+    def _prepare_callbacks(self) -> Union[List[pl.Callback], None]:
+        """
+        Prepare the callbacks for the training process.
+
+        Returns:
+            Union[List[pl.Callback], None]: The list of callbacks.
+        """
+        callbacks = []
+        early_stopping_config = self.global_config.get("early_stopping_config")
+        model_save_interval = self.global_config["save_model_every_n_epochs"]
+        if early_stopping_config is not None:
+            early_stopping = pl.callbacks.EarlyStopping(
+                monitor=early_stopping_config["monitor_value"],
+                mode=early_stopping_config["monitor_mode"],
+                patience=early_stopping_config["patience"],
+                strict=True,  # crash the training if the metric is not found
+            )
+            callbacks.append(early_stopping)
+        if model_save_interval > 0:
+            model_checkpoint = pl.callbacks.ModelCheckpoint(
+                dirpath=os.path.join(self.output_dir, "checkpoints"),
+                every_n_epochs=model_save_interval,
+                save_last="link",
+                enable_version_counter=False,
+                save_top_k=-1,  # disable overwriting older checkpoints
+            )
+            callbacks.append(model_checkpoint)
+        return callbacks if callbacks else None
+
     def _assert_parameter_correctness(self):
         """
         Assert the correctness of the parameters.
@@ -176,9 +220,9 @@ class TrainingManager:
             )
             self.reset = False
 
-    def _load_or_save_parameters(self):
+    def _load_or_save_configs(self):
         """
-        Load or save the parameters for the training process.
+        Load or save the configurations for the training process.
         """
         parameters_pickle_path = os.path.join(self.output_dir, "parameters.pkl")
         pickle_file_exists = os.path.exists(parameters_pickle_path)
@@ -295,63 +339,7 @@ class TrainingManager:
         """
         self.trainer.fit(self.module, self.train_dataloader, self.val_dataloader)
         if self.test_dataloader is not None:
+            # TODO here we should do check if we are using distributed training, if
+            # so reinitialize the trainer with only single device to ensure testing
+            # validity
             self.trainer.test(self.module, self.test_dataloader)
-        # CAUTION - keep careful when dealing with multiple batches and split images (slices)
-        # self.module.save_checkpoint(suffix="_start")
-        # num_epochs = self.global_config["num_epochs"]
-        # for epoch in range(num_epochs):
-        #     self.module._on_train_epoch_start(epoch)
-        #     train_progress_bar = prepare_progress_bar(
-        #         self.train_dataloader,
-        #         len(self.train_dataloader),
-        #         f"Training epoch {epoch}/{num_epochs}",
-        #     )
-
-        #     for batch_idx, batch in train_progress_bar:
-        #         assert_input_correctness(
-        #             configured_input_shape=self.model_config.tensor_shape,
-        #             configured_n_channels=self.model_config.n_channels,
-        #             batch_idx=batch_idx,
-        #             batch=batch,
-        #         )
-        #         batch = ensure_device_placement(batch, self.device)
-        #         self.module.training_step(batch, batch_idx)
-        #     self.module._on_train_epoch_end(epoch)
-        #     if self.val_dataloader is not None:
-        #         val_progress_bar = prepare_progress_bar(
-        #             self.val_dataloader,
-        #             len(self.val_dataloader),
-        #             f"Validation epoch {epoch}/{num_epochs}",
-        #         )
-        #         self.module._on_validation_epoch_start(epoch)
-        #         for batch_idx, batch in val_progress_bar:
-        #             assert_input_correctness(
-        #                 configured_input_shape=self.model_config.tensor_shape,
-        #                 configured_n_channels=self.model_config.n_channels,
-        #                 batch_idx=batch_idx,
-        #                 batch=batch,
-        #             )
-        #             batch = ensure_device_placement(batch, self.device)
-        #             self.module.validation_step(batch, batch_idx)
-        #         self.module._on_validation_epoch_end(epoch)
-        #     if self.global_config["save_model_every_n_epochs"] != -1 and (
-        #         epoch % self.global_config["save_model_every_n_epochs"] == 0
-        #     ):
-        #         self.module.save_checkpoint(suffix=f"epoch-{epoch}")
-        #     self.module.save_checkpoint(suffix=f"latest")
-        # if self.test_dataloader is not None:
-        #     test_progress_bar = prepare_progress_bar(
-        #         self.test_dataloader, len(self.test_dataloader), "Testing"
-        #     )
-
-        #     self.module._on_test_start()
-        #     for batch_idx, batch in test_progress_bar:
-        #         assert_input_correctness(
-        #             configured_input_shape=self.model_config.tensor_shape,
-        #             configured_n_channels=self.model_config.n_channels,
-        #             batch_idx=batch_idx,
-        #             batch=batch,
-        #         )
-        #         batch = ensure_device_placement(batch, self.device)
-        #         self.module.test_step(batch, batch_idx)
-        #     self.module._on_test_end()
