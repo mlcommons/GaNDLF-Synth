@@ -82,41 +82,6 @@ class SynthesisModule(pl.LightningModule, metaclass=ABCMeta):
         """
         return None
 
-    def load_checkpoint(self, checkpoint_path: Optional[str] = None) -> None:
-        """
-        Load the module checkpoint from specified run directory.
-        If specified, loads directly from the checkpoint path, otherwise
-        tries to load the latest checkpoint from the model directory.
-
-        Args:
-            checkpoint_path (str, optional): Path to the checkpoint file.
-
-        """
-
-        def _determine_checkpoint_to_load(output_dir: str) -> Union[str, None]:
-            """
-            Based on the present checkpoints, determine which checkpoint to load.
-            If a custom suffix is provided, it will be used to load the checkpoint.
-            Args:
-                output_dir (str): The output directory for the model.
-            Returns:
-                checkpoint_path (str): Path to the checkpoint to load.
-            """
-            last_checkpoint_path = os.path.join(output_dir, "last.ckpt")
-            if os.path.exists(os.path.join(output_dir, "last.ckpt")):
-                return last_checkpoint_path
-
-        if checkpoint_path is None:
-            checkpoint_path = _determine_checkpoint_to_load(
-                os.path.join(self.model_dir, "checkpoints")
-            )
-        if checkpoint_path is None:
-            self.logger.info(
-                "No checkpoint found in the model directory. Skipping loading the model."
-            )
-            return
-        self.load_from_checkpoint(checkpoint_path)
-
     def _apply_postprocessing(self, data_to_transform: torch.Tensor) -> torch.Tensor:
         """
         Applies postprocessing transformations to the data.

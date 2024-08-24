@@ -104,8 +104,12 @@ class TrainingManager:
             ),
         )
         self.module = module_factory.get_module()
-        if self.resume:
-            self.module.load_checkpoint(custom_checkpoint_path)
+        self.resume_checkpoint_path = (
+            self._determine_checkpoint_path_to_load(custom_checkpoint_path)
+            if self.resume
+            else None
+        )
+
         # TODO in the future, move it to separate function which would initialize
         # this as base logger and other loggers as well (like wandb)
         trainer_logger = pl.loggers.CSVLogger(
@@ -169,6 +173,29 @@ class TrainingManager:
                 "If you want to avoid samples from the same subject to be split between training and testing, provide a test dataframe.",
                 UserWarning,
             )
+
+    def _determine_checkpoint_path_to_load(
+        self, custom_checkpoint_path: Optional[str]
+    ) -> Optional[str]:
+        """
+        Determine the checkpoint path to load based on the user input.
+        If no custom checkpoint path is provided, looks for the last checkpoint in the default directory.
+        If no checkpoint is found, returns None.
+
+        Args:
+            custom_checkpoint_path (Optional[str]): The custom checkpoint path to load.
+
+        Returns:
+            Optional[str]: The checkpoint path to load.
+        """
+
+        if custom_checkpoint_path is not None and os.path.exists(
+            custom_checkpoint_path
+        ):
+            return custom_checkpoint_path
+        last_checkpoint_path = os.path.join(self.output_dir, "checkpoints", "last.ckpt")
+        if os.path.exists(last_checkpoint_path):
+            return last_checkpoint_path
 
     def _prepare_callbacks(self) -> Union[List[pl.Callback], None]:
         """
@@ -337,7 +364,12 @@ class TrainingManager:
         """
         Train the model.
         """
-        self.trainer.fit(self.module, self.train_dataloader, self.val_dataloader)
+        self.trainer.fit(
+            self.module,
+            self.train_dataloader,
+            self.val_dataloader,
+            ckpt_path=self.resume_checkpoint_path,
+        )
         if self.test_dataloader is not None:
             # TODO here we should do check if we are using distributed training, if
             # so reinitialize the trainer with only single device to ensure testing
