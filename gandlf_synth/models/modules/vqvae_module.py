@@ -9,7 +9,7 @@ from gandlf_synth.losses import get_loss
 from gandlf_synth.schedulers import get_scheduler
 
 
-from typing import Dict, Union, List, Tuple
+from typing import Dict, Union, List
 
 
 class UnlabeledVQVAEModule(SynthesisModule):
@@ -82,12 +82,9 @@ class UnlabeledVQVAEModule(SynthesisModule):
             self._step_log(metric_result)
             self.test_metric_list.append(metric_result)
 
-    @torch.no_grad()
-    def inference_step(self, **kwargs) -> torch.Tensor:
-        input_batch = kwargs.get("input_batch")
-        assert input_batch is not None, "Input batch is required for inference."
-        recon_images, quantization_loss = self.model(input_batch)
-        recon_loss = self.losses(recon_images, input_batch)
+    def predict_step(self, batch, batch_idx) -> torch.Tensor:
+        recon_images, quantization_loss = self.model(batch)
+        recon_loss = self.losses(recon_images, batch)
         # self._step_log("inference_reconstruction_loss", recon_loss)
         # self._step_log("inference_quantization_loss", quantization_loss)
         if self.postprocessing_transforms is not None:
@@ -98,8 +95,8 @@ class UnlabeledVQVAEModule(SynthesisModule):
             metric_result = {}
             for metric_name, metric in self.metric_calculator.items():
                 inference_metric_name = f"inference_{metric_name}"
-                metric_result[inference_metric_name] = metric(recon_images, input_batch)
-            # self._step_log(metric_result)
+                metric_result[inference_metric_name] = metric(recon_images, batch)
+            self._step_log(metric_result)
 
         return recon_images
 

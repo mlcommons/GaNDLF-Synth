@@ -55,12 +55,10 @@ class UnlabeledDDPMModule(SynthesisModule):
             "Test step is not implemented for the UnlabeledDDPMModule."
         )
 
-    @torch.no_grad()
-    def inference_step(self, **kwargs) -> torch.Tensor:
-        n_images_to_generate = kwargs.get("n_images_to_generate", None)
-        assert (
-            n_images_to_generate is not None
-        ), "Number of images to generate is required during the inference pass."
+    def predict_step(self, batch, batch_idx) -> torch.Tensor:
+        # Batch is a set of batch_idxes, representing separate samples
+        # to generate, for example batch=torch.Tensor([0, 1, 2, 3, 4])
+        n_images_to_generate = len(batch)
 
         noise = torch.randn(
             n_images_to_generate,

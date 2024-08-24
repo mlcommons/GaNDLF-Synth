@@ -109,22 +109,24 @@ class UnlabeledDCGANModule(SynthesisModule):
     def test_step(self, batch: object, batch_idx: int) -> torch.Tensor:
         raise NotImplementedError("Test step is not implemented for the DCGAN.")
 
-    # TODO move this method either as only forward OR test for the trianer to run
-    def inference_step(self, **kwargs) -> torch.Tensor:
-        n_images_to_generate = kwargs.get("n_images_to_generate", None)
-        assert (
-            n_images_to_generate is not None
-        ), "Number of images to generate is required during the inference pass."
-
-        fake_images = self.forward(n_images_to_generate=n_images_to_generate)
+    def predict_step(self, batch, batch_dx) -> torch.Tensor:
+        n_images_to_generate = len(batch)
+        latent_vector = generate_latent_vector(
+            n_images_to_generate,
+            self.model_config.architecture["latent_vector_size"],
+            self.model_config.n_dimensions,
+            self.device,
+        )
+        fake_images = self.model.generator(latent_vector)
         if self.postprocessing_transforms is not None:
             for transform in self.postprocessing_transforms:
                 fake_images = transform(fake_images)
         # DCGAN will produce images in the range [-1, 1], we need to normalize them to [0, 1]
         fake_images = (fake_images + 1) / 2
+
         return fake_images
 
-    def forward(self, **kwargs) -> torch.Tensor:
+    def forward(self, latent_vector) -> torch.Tensor:
         """
         Forward pass of the unlabeled DCGAN module. This method is considered
         a call to a generator to produce given number of images.
@@ -132,17 +134,7 @@ class UnlabeledDCGANModule(SynthesisModule):
         Args:
             n_images_to_generate (int): Number of images to generate.
         """
-        n_images_to_generate = kwargs.get("n_images_to_generate", None)
-        assert (
-            n_images_to_generate is not None
-        ), "Number of images to generate is required during the forward pass."
 
-        latent_vector = generate_latent_vector(
-            n_images_to_generate,
-            self.model_config.architecture["latent_vector_size"],
-            self.model_config.n_dimensions,
-            self.device,
-        )
         fake_images = self.model.generator(latent_vector)
         return fake_images
 
