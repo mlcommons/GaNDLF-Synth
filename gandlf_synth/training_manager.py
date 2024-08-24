@@ -113,7 +113,7 @@ class TrainingManager:
         # TODO in the future, move it to separate function which would initialize
         # this as base logger and other loggers as well (like wandb)
         trainer_logger = pl.loggers.CSVLogger(
-            self.output_dir, name="training_logs", flush_logs_every_n_steps=1
+            self.output_dir, name="training_logs", flush_logs_every_n_steps=10
         )
         callbacks = self._prepare_callbacks()
         self.trainer = pl.Trainer(
