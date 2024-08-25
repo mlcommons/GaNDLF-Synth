@@ -1,8 +1,6 @@
 import os
 import shutil
 import pickle
-from tqdm import tqdm
-from warnings import warn
 
 import torch
 import pandas as pd
@@ -16,12 +14,11 @@ from gandlf_synth.utils.managers_utils import (
     prepare_logger,
     prepare_postprocessing_transforms,
     prepare_transforms,
+    determine_checkpoint_to_load,
 )
 from gandlf_synth.metrics import get_metrics
 
 from typing import Optional, Type, Union, List
-
-CUDA_VISIBLE_DEVICES = torch.cuda.device_count()
 
 
 class TrainingManager:
@@ -105,7 +102,9 @@ class TrainingManager:
         )
         self.module = module_factory.get_module()
         self.resume_checkpoint_path = (
-            self._determine_checkpoint_path_to_load(custom_checkpoint_path)
+            determine_checkpoint_to_load(
+                model_dir=self.output_dir, custom_checkpoint_path=custom_checkpoint_path
+            )
             if self.resume
             else None
         )
@@ -125,77 +124,52 @@ class TrainingManager:
             gradient_clip_algorithm=self.model_config.gradient_clip_algorithm,
             gradient_clip_val=self.model_config.gradient_clip_val,
             precision=self.global_config["precision"],  # default is 32
-            sync_batchnorm=True if CUDA_VISIBLE_DEVICES > 1 else False,
+            sync_batchnorm=True if torch.cuda.device_count() > 1 else False,
         )
 
-    # TODO offload this to the logger as this clutters the stdout
     def _warn_user(self):
         """
         Warn the user about the validation and testing configuration.
         """
         if self.val_dataframe is None and self.val_ratio == 0:
-            warn(
+            self.logger.warning(
                 "Validation data is not provided and the validation ratio is set to 0. "
-                "The model will not be validated during the training process.",
-                UserWarning,
+                "The model will not be validated during the training process."
             )
         if self.test_dataframe is None and self.test_ratio == 0:
-            warn(
+            self.logger.warning(
                 "Test data is not provided and the test ratio is set to 0. "
-                "The model will not be tested after the training process.",
-                UserWarning,
+                "The model will not be tested after the training process."
             )
         if self.val_dataframe is not None and self.val_ratio != 0:
-            warn(
+            self.logger.warning(
                 "Validation data is provided and the validation ratio is set to a non-zero value. "
-                "The validation data provided will be used for validation, and the validation ratio will be ignored.",
-                UserWarning,
+                "The validation data provided will be used for validation, and the validation ratio will be ignored."
             )
         if self.test_dataframe is not None and self.test_ratio != 0:
-            warn(
+            self.logger.warning(
                 "Test data is provided and the test ratio is set to a non-zero value. "
-                "The test data provided will be used for testing, and the test ratio will be ignored.",
-                UserWarning,
+                "The test data provided will be used for testing, and the test ratio will be ignored."
             )
         if self.val_dataframe is None and self.val_ratio != 0:
-            warn(
+            self.logger.warning(
                 "Validation data is not provided, and the validation ratio is set to a non-zero value. "
-                "Validation data will be extracted from the training data."
-                "IMPORTANT: samples from the training data will be RANDOMLY selected REGARDLESS of the subjects they come from."
-                "If you want to avoid samples from the same subject to be split between training and validation, provide a validation dataframe.",
-                UserWarning,
+                "Validation data will be extracted from the training data. "
+                "IMPORTANT: samples from the training data will be RANDOMLY selected REGARDLESS of the subjects they come from. "
+                "If you want to avoid samples from the same subject to be split between training and validation, provide a validation dataframe."
             )
         if self.test_dataframe is None and self.test_ratio != 0:
-            warn(
+            self.logger.warning(
                 "Test data is not provided, and the test ratio is set to a non-zero value. "
-                "Test data will be extracted from the training data."
-                "IMPORTANT: samples from the training data will be RANDOMLY selected REGARDLESS of the subjects they come from."
-                "If you want to avoid samples from the same subject to be split between training and testing, provide a test dataframe.",
-                UserWarning,
+                "Test data will be extracted from the training data. "
+                "IMPORTANT: samples from the training data will be RANDOMLY selected REGARDLESS of the subjects they come from. "
+                "If you want to avoid samples from the same subject to be split between training and testing, provide a test dataframe."
             )
-
-    def _determine_checkpoint_path_to_load(
-        self, custom_checkpoint_path: Optional[str]
-    ) -> Optional[str]:
-        """
-        Determine the checkpoint path to load based on the user input.
-        If no custom checkpoint path is provided, looks for the last checkpoint in the default directory.
-        If no checkpoint is found, returns None.
-
-        Args:
-            custom_checkpoint_path (Optional[str]): The custom checkpoint path to load.
-
-        Returns:
-            Optional[str]: The checkpoint path to load.
-        """
-
-        if custom_checkpoint_path is not None and os.path.exists(
-            custom_checkpoint_path
-        ):
-            return custom_checkpoint_path
-        last_checkpoint_path = os.path.join(self.output_dir, "checkpoints", "last.ckpt")
-        if os.path.exists(last_checkpoint_path):
-            return last_checkpoint_path
+        if self.reset and self.resume:
+            self.logger.warning(
+                "Both reset and resume flags are set to True. The reset flag will be ignored."
+            )
+            self.reset = False
 
     def _prepare_callbacks(self) -> Union[List[pl.Callback], None]:
         """
@@ -240,16 +214,11 @@ class TrainingManager:
             self.val_ratio + self.test_ratio <= 1
         ), "Validation and test ratios must sum up to less than or equal to 1"
 
-        if self.reset and self.resume:
-            warn(
-                "Both reset and resume are set to True. Resume will take precedence.",
-                UserWarning,
-            )
-            self.reset = False
-
     def _load_or_save_configs(self):
         """
-        Load or save the configurations for the training process.
+        Load or save the configurations for the training process. If in the
+        resume mode, the configurations will be loaded from the previous run if
+        found. Otherwise, the passed configurations will be saved for the current run.
         """
         parameters_pickle_path = os.path.join(self.output_dir, "parameters.pkl")
         pickle_file_exists = os.path.exists(parameters_pickle_path)
@@ -288,6 +257,7 @@ class TrainingManager:
         """
         Extracts random data indices from the dataframe based on the ratio.
         Chosen indices are removed from the original dataframe in place.
+
         Args:
             dataframe (pd.DataFrame): The dataframe to extract data from.
             ratio (float): The ratio of data to be extracted.

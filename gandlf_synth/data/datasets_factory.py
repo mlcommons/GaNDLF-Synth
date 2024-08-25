@@ -44,11 +44,31 @@ class InferenceDatasetFactory:
         model_config: dict,
         dataframe_reconstruction: Optional[pd.DataFrame],
     ):
+        """
+        Initialize the Inference Dataset Factory.
+        This class prepares the dataset for the inference process, compatible with the
+        labeling paradigm and lighting module.
+
+        Args:
+            global_config (dict): The global configuration dictionary.
+            model_config (dict): The model configuration dictionary.
+            dataframe_reconstruction (Optional[pd.DataFrame]): The dataframe with the data
+        to perform reconstruction on. This will be used only for autoencoder-style models.
+        """
+
         self.global_config = global_config
         self.dataframe_reconstruction = dataframe_reconstruction
         self.model_config = model_config
 
     def _unlabeled_inference_dataset(self):
+        """
+        Prepare dataset for the inference process if the labeling paradigm is unlabeled.
+        The dataset will just contain indices.
+
+        Returns:
+            torch.utils.data.TensorDataset: The dataset for the inference process.
+
+        """
         n_images_to_generate = self.global_config["inference_parameters"][
             "n_images_to_generate"
         ]
@@ -57,6 +77,14 @@ class InferenceDatasetFactory:
         return dataset
 
     def _labeled_inference_dataset(self):
+        """
+        Prepare dataset for the inference process if the labeling paradigm is labeled.
+        The dataset will contain indices and labels, with the number of images from
+        each class specified in the global config.
+
+        Returns:
+            torch.utils.data.TensorDataset: The dataset for the inference process.
+        """
         per_class_n_images_to_generate = self.global_config["inference_parameters"][
             "n_images_to_generate"
         ]
@@ -76,7 +104,7 @@ class InferenceDatasetFactory:
         data is provided.
 
         Returns:
-            torch.utils.data.DataLoader: The dataloader for the inference process.
+            torch.utils.data.Dataset: The dataset for the inference process.
         """
         transforms = prepare_transforms(
             augmentations_config=self.global_config.get("data_augmentations"),
@@ -94,6 +122,12 @@ class InferenceDatasetFactory:
 
     # TODO: Think if this is the way to do it.
     def get_inference_dataset(self) -> torch.utils.data.Dataset:
+        """
+        Prepare the dataset for the inference process based on the labeling paradigm.
+
+        Returns:
+            torch.utils.data.Dataset: The dataset for the inference process.
+        """
         labeling_paradigm = self.model_config.labeling_paradigm
         module_type = (
             "reconstruction"

@@ -43,8 +43,8 @@ inference_parameters:
 metrics:
 - ncc_min
 modality: rad
+precision: "32"
 model_config:
-  amp: false
   architecture:
     latent_vector_size: 100
   converter_type: soft
@@ -61,6 +61,9 @@ model_config:
   n_channels: 2
   n_dimensions: 2
   norm_type: batch
+  schedulers:
+    discriminator:
+      triangle_modified
   optimizers:
     discriminator:
       betas:
@@ -79,6 +82,9 @@ model_config:
   tensor_shape:
   - 128
   - 128
+  save_eval_images_every_n_epochs: 5
+  n_fixed_images_to_generate: 10
+  fixed_images_batch_size: 10
 num_epochs: 1
 patience: 0
 save_model_every_n_epochs: 1

@@ -1,6 +1,3 @@
-from logging import Logger
-from torch import device as torch_device
-
 from gandlf_synth.models.modules.module_abc import SynthesisModule
 from gandlf_synth.models.modules.dcgan_module import UnlabeledDCGANModule
 from gandlf_synth.models.modules.vqvae_module import UnlabeledVQVAEModule

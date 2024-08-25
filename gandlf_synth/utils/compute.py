@@ -5,7 +5,7 @@ from torch import nn
 from GANDLF.grad_clipping.grad_scaler import GradScaler, model_parameters_exclude_head
 from GANDLF.grad_clipping.clip_gradients import dispatch_clip_grad_
 
-from typing import Optional, Union, List, Sequence
+from typing import Optional, Union, Sequence
 
 
 def backward_pass(

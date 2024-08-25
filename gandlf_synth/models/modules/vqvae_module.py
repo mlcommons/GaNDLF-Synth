@@ -15,102 +15,71 @@ from typing import Dict, Union, List
 class UnlabeledVQVAEModule(SynthesisModule):
     def __init__(self, **kwargs) -> None:
         super().__init__(**kwargs)
-        self.train_loss_list: List[Dict[float]] = []
-        self.train_metric_list: List[Dict[float]] = []
-        self.val_loss_list: List[Dict[float]] = []
-        self.val_metric_list: List[Dict[float]] = []
-        self.test_loss_list: List[Dict[float]] = []
-        self.test_metric_list: List[Dict[float]] = []
+        # TODO how to display the predict metrics/results? It cannot be logged
+        self.phase_loss_lists = {"train": [], "val": [], "test": [], "predict": []}
+        self.phase_metric_lists = {"train": [], "val": [], "test": [], "predict": []}
 
-    def training_step(self, batch: object, batch_idx: int) -> torch.Tensor:
+    def _calculate_and_log_metrics(
+        self, recon_images: torch.Tensor, x: torch.Tensor, phase: str
+    ):
+        metric_result = {}
+        for metric_name, metric in self.metric_calculator.items():
+            if phase != "train":
+                metric_name = f"{phase}_{metric_name}"
+            metric_result[metric_name] = metric(recon_images, x)
+        self.phase_metric_lists[phase].append(metric_result)
+        if phase != "predict":
+            self._step_log(metric_result)
+
+    def _common_step(self, batch: object, phase: str) -> torch.Tensor:
         x = batch
         recon_images, quantization_loss = self.model(x)
         reconstruction_loss = self.losses(recon_images, x)
         loss = reconstruction_loss + quantization_loss
+
         loss_dict = {
             "reconstruction_loss": reconstruction_loss.item(),
             "quantization_loss": quantization_loss.item(),
         }
-        self.train_loss_list.append(loss_dict)
-        self._step_log(loss_dict)
+        self.phase_loss_lists[phase].append(loss_dict)
+        if phase != "predict":
+            self._step_log(loss_dict)
         if self.metric_calculator is not None:
-            metric_result = {}
-            for metric_name, metric in self.metric_calculator.items():
-                metric_result[metric_name] = metric(recon_images.detach(), x)
-            self.train_metric_list.append(metric_result)
-            self._step_log(metric_result)
+            self._calculate_and_log_metrics(recon_images, x, phase)
+
+        return loss, recon_images
+
+    def training_step(self, batch: object, batch_idx: int) -> torch.Tensor:
+        loss, _ = self._common_step(batch, "train")
         return loss
 
     def validation_step(self, batch: object, batch_idx: int) -> torch.Tensor:
-        x = batch
-        recon_images, quantization_loss = self.model(x)
-
-        reconstruction_loss = self.losses(recon_images, x)
-        loss = reconstruction_loss + quantization_loss
-        loss_dict = {
-            "reconstruction_loss": reconstruction_loss.item(),
-            "quantization_loss": quantization_loss.item(),
-        }
-
-        self.val_loss_list.append(loss_dict)
-        self._step_log(loss_dict)
-
-        if self.metric_calculator is not None:
-            metric_result = {}
-            for metric_name, metric in self.metric_calculator.items():
-                val_metric_name = f"val_{metric_name}"
-                metric_result[val_metric_name] = metric(recon_images, x)
-            self._step_log(metric_result)
-            self.val_metric_list.append(metric_result)
+        loss, _ = self._common_step(batch, "val")
         return loss
 
     def test_step(self, batch: object, batch_idx: int) -> torch.Tensor:
-        x = batch
-        recon_images, quantization_loss = self.model(x)
-        reconstruction_loss = self.losses(recon_images, x)
-        loss_dict = {
-            "reconstruction_loss": reconstruction_loss.item(),
-            "quantization_loss": quantization_loss.item(),
-        }
-        self.test_loss_list.append(loss_dict)
-        self._step_log(loss_dict)
-        if self.metric_calculator is not None:
-            metric_result = {}
-            for metric_name, metric in self.metric_calculator.items():
-                inference_metric_name = f"test_{metric_name}"
-                metric_result[inference_metric_name] = metric(recon_images, x)
-            self._step_log(metric_result)
-            self.test_metric_list.append(metric_result)
+        self._common_step(batch, "test")
 
     def predict_step(self, batch, batch_idx) -> torch.Tensor:
-        recon_images, quantization_loss = self.model(batch)
-        recon_loss = self.losses(recon_images, batch)
-        # self._step_log("inference_reconstruction_loss", recon_loss)
-        # self._step_log("inference_quantization_loss", quantization_loss)
+        _, recon_images = self._common_step(batch, "predict")
+
         if self.postprocessing_transforms is not None:
             for transform in self.postprocessing_transforms:
                 recon_images = transform(recon_images)
 
-        if self.metric_calculator is not None:
-            metric_result = {}
-            for metric_name, metric in self.metric_calculator.items():
-                inference_metric_name = f"inference_{metric_name}"
-                metric_result[inference_metric_name] = metric(recon_images, batch)
-            self._step_log(metric_result)
-
         return recon_images
 
     def on_train_epoch_end(self) -> None:
-        self._epoch_log(self.train_loss_list)
-        self._epoch_log(self.train_metric_list)
+        self._epoch_log(self.phase_loss_lists["train"])
+        self._epoch_log(self.phase_metric_lists["train"])
 
     def on_validation_epoch_end(self) -> None:
-        self._epoch_log(self.val_loss_list)
-        self._epoch_log(self.val_metric_list)
+        self._epoch_log(self.phase_loss_lists["val"])
+        self._epoch_log(self.phase_metric_lists["val"])
 
     def on_test_epoch_end(self) -> None:
-        self._epoch_log(self.test_loss_list)
-        self._epoch_log(self.test_metric_list)
+        self._epoch_log(self.phase_loss_lists["test"])
+        self._epoch_log(self.phase_metric_lists["test"])
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         return self.model(x)

@@ -30,7 +30,10 @@ dockerfiles = [
 extra_files = []
 toplevel_package_excludes = ["testing*"]
 
-requirements = ["GANDLF@git+https://github.com/mlcommons/GandLF.git@master"]
+requirements = [
+    "GANDLF@git+https://github.com/mlcommons/GandLF.git@master",
+    "lightning==2.4.0",
+]
 if __name__ == "__main__":
     setup(
         name="gandlf_synth",

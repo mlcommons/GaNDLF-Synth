@@ -5,7 +5,8 @@ import logging
 from pathlib import Path
 
 import pandas as pd
-
+from torchio.transforms import Compose, Resize
+import pytorch_lightning as pl
 from gandlf_synth.config_manager import ConfigManager
 from gandlf_synth.data.datasets_factory import DatasetFactory
 from gandlf_synth.data.dataloaders_factory import DataloaderFactory
@@ -56,14 +57,18 @@ def test_module_config_pairs():
 # a training manager. For now it is commented out, as the same logic happens in training manager
 # in the future we may remove it or replace it with some modification.
 
+
 # def test_initial_pipeline_module():
-#     with ContextManagerTests():
+#     test_name = inspect.currentframe().f_code.co_name
+#     with ContextManagerTests(
+#         test_dir=TEST_DIR, test_name=test_name, output_dir=OUTPUT_DIR
+#     ):
 #         for module in AVAILABLE_MODULES:
-#             labeling_paradigm, model_name = parse_available_module(module)
+#             # labeling_paradigm, model_name = parse_available_module(module)
 #             with open(TEST_CONFIG_PATH, "r") as config_file:
 #                 config = yaml.safe_load(config_file)
-#                 config["model_config"]["model_name"] = model_name
-#                 config["model_config"]["labeling_paradigm"] = labeling_paradigm
+#                 # config["model_config"]["model_name"] = model_name
+#                 # config["model_config"]["labeling_paradigm"] = labeling_paradigm
 #             with open(TEST_CONFIG_PATH, "w") as config_file:
 #                 yaml.dump(config, config_file)
 #             config_manager = ConfigManager(TEST_CONFIG_PATH)
@@ -84,9 +89,13 @@ def test_module_config_pairs():
 #                 model_config=model_config,
 #                 logger=LOGGER_OBJECT,
 #                 metric_calculator=None,
-#                 device=DEVICE,
+#                 model_dir=OUTPUT_DIR,
 #             )
 #             module = module_factory.get_module()
+
+#             trainer = pl.Trainer(max_epochs=1)
+#             trainer.fit(module, dataloader)
+
 
 #             for batch_idx, batch in enumerate(dataloader):
 #                 module.training_step(batch, batch_idx)
@@ -94,36 +103,18 @@ def test_module_config_pairs():
 #                 break
 
 
-def test_training_manager():
-    test_name = inspect.currentframe().f_code.co_name
-    with ContextManagerTests(
-        test_dir=TEST_DIR, test_name=test_name, output_dir=OUTPUT_DIR
-    ):
-        config_manager = ConfigManager(TEST_CONFIG_PATH)
-        global_config, model_config = config_manager.prepare_configs()
-        example_dataframe = pd.read_csv(CSV_PATH)
-        # test the run when there is no validation and testing data
-        training_manager = TrainingManager(
-            train_dataframe=example_dataframe,
-            output_dir=OUTPUT_DIR,
-            global_config=global_config,
-            model_config=model_config,
-            resume=False,
-            reset=False,
-            device=DEVICE,
-        )
-        training_manager.run_training()
-
-
 def test_training_manager_val_test_df():
+    """
+    Test with val and test dataframes provided for splitting the data.
+    """
     test_name = inspect.currentframe().f_code.co_name
     with ContextManagerTests(
         test_dir=TEST_DIR, test_name=test_name, output_dir=OUTPUT_DIR
     ):
-        config_manager = ConfigManager(TEST_CONFIG_PATH)
+        test_config_path = os.path.join(TEST_DIR, "syntheis_module_config_vqvae.yaml")
+        config_manager = ConfigManager(test_config_path)
         global_config, model_config = config_manager.prepare_configs()
         example_dataframe = pd.read_csv(CSV_PATH)
-        # Test with val and test data provided
         global_config, model_config = config_manager.prepare_configs()
         training_manager = TrainingManager(
             train_dataframe=example_dataframe,
@@ -132,7 +123,6 @@ def test_training_manager_val_test_df():
             model_config=model_config,
             resume=False,
             reset=False,
-            device=DEVICE,
             val_dataframe=example_dataframe,
             test_dataframe=example_dataframe,
         )
@@ -140,14 +130,17 @@ def test_training_manager_val_test_df():
 
 
 def test_training_manager_val_test_ratio():
+    """
+    Test with val and test ratio provided for splitting the data.
+    """
     test_name = inspect.currentframe().f_code.co_name
     with ContextManagerTests(
         test_dir=TEST_DIR, test_name=test_name, output_dir=OUTPUT_DIR
     ):
-        config_manager = ConfigManager(TEST_CONFIG_PATH)
+        test_config_path = os.path.join(TEST_DIR, "syntheis_module_config_vqvae.yaml")
+        config_manager = ConfigManager(test_config_path)
         global_config, model_config = config_manager.prepare_configs()
         example_dataframe = pd.read_csv(CSV_PATH)
-        # Test with val and test ratio provided
         global_config, model_config = config_manager.prepare_configs()
         training_manager = TrainingManager(
             train_dataframe=example_dataframe,
@@ -156,7 +149,6 @@ def test_training_manager_val_test_ratio():
             model_config=model_config,
             resume=False,
             reset=False,
-            device=DEVICE,
             val_ratio=0.1,
             test_ratio=0.1,
         )
@@ -164,12 +156,16 @@ def test_training_manager_val_test_ratio():
 
 
 def test_training_manager_val_test_fallback():
+    """
+    Test fallback to dataframes when both ratios and dataframes are provided.
+    Should fallback to dataframes.
+    """
     test_name = inspect.currentframe().f_code.co_name
     with ContextManagerTests(
         test_dir=TEST_DIR, test_name=test_name, output_dir=OUTPUT_DIR
     ):
-        # Test fallback to dataframes when both provided
-        config_manager = ConfigManager(TEST_CONFIG_PATH)
+        test_config_path = os.path.join(TEST_DIR, "syntheis_module_config_vqvae.yaml")
+        config_manager = ConfigManager(test_config_path)
         global_config, model_config = config_manager.prepare_configs()
         example_dataframe = pd.read_csv(CSV_PATH)
         training_manager = TrainingManager(
@@ -179,7 +175,6 @@ def test_training_manager_val_test_fallback():
             model_config=model_config,
             resume=False,
             reset=False,
-            device=DEVICE,
             val_ratio=0.1,
             test_ratio=0.1,
             val_dataframe=example_dataframe,
@@ -189,6 +184,9 @@ def test_training_manager_val_test_fallback():
 
 
 def test_training_manager_reset_resume():
+    """
+    Test resetting and resuming training.
+    """
     test_name = inspect.currentframe().f_code.co_name
     with ContextManagerTests(
         test_dir=TEST_DIR, test_name=test_name, output_dir=OUTPUT_DIR
@@ -204,7 +202,6 @@ def test_training_manager_reset_resume():
             model_config=model_config,
             resume=False,
             reset=False,
-            device=DEVICE,
         )
         training_manager.run_training()
         global_config, model_config = config_manager.prepare_configs()
@@ -215,7 +212,6 @@ def test_training_manager_reset_resume():
             model_config=model_config,
             resume=False,
             reset=True,
-            device=DEVICE,
         )
         training_manager.run_training()
         global_config, model_config = config_manager.prepare_configs()
@@ -226,37 +222,34 @@ def test_training_manager_reset_resume():
             model_config=model_config,
             resume=True,
             reset=False,
-            device=DEVICE,
         )
         training_manager.run_training()
 
 
-def test_inference_manager():
+def test_training_inference_dcgan():
     test_name = inspect.currentframe().f_code.co_name
-    with ContextManagerTests(
-        test_dir=TEST_DIR, test_name=test_name, output_dir=OUTPUT_DIR
-    ):
-        config_manager = ConfigManager(TEST_CONFIG_PATH)
-        global_config, model_config = config_manager.prepare_configs()
-        example_dataframe = pd.read_csv(CSV_PATH)
-        training_manager = TrainingManager(
-            train_dataframe=example_dataframe,
-            output_dir=OUTPUT_DIR,
-            global_config=global_config,
-            model_config=model_config,
-            resume=False,
-            reset=False,
-            device=DEVICE,
-        )
-        training_manager.run_training()
-        inference_manager = InferenceManager(
-            model_config=model_config,
-            global_config=global_config,
-            model_dir=OUTPUT_DIR,
-            output_dir=INFERENCE_OUTPUT_DIR,
-            device=DEVICE,
-        )
-        inference_manager.run_inference()
+    # with ContextManagerTests(
+    #     test_dir=TEST_DIR, test_name=test_name, output_dir=OUTPUT_DIR
+    # ):
+    config_manager = ConfigManager(TEST_CONFIG_PATH)
+    global_config, model_config = config_manager.prepare_configs()
+    example_dataframe = pd.read_csv(CSV_PATH)
+    training_manager = TrainingManager(
+        train_dataframe=example_dataframe,
+        output_dir=OUTPUT_DIR,
+        global_config=global_config,
+        model_config=model_config,
+        resume=False,
+        reset=False,
+    )
+    training_manager.run_training()
+    inference_manager = InferenceManager(
+        model_config=model_config,
+        global_config=global_config,
+        model_dir=OUTPUT_DIR,
+        output_dir=INFERENCE_OUTPUT_DIR,
+    )
+    inference_manager.run_inference()
 
 
 def test_training_inference_vqvae():
@@ -277,7 +270,6 @@ def test_training_inference_vqvae():
             model_config=model_config,
             resume=False,
             reset=False,
-            device=DEVICE,
         )
         training_manager.run_training()
 
@@ -286,7 +278,6 @@ def test_training_inference_vqvae():
             model_config=model_config,
             model_dir=OUTPUT_DIR,
             output_dir=INFERENCE_OUTPUT_DIR,
-            device=DEVICE,
             dataframe_reconstruction=example_dataframe,
         )
         inference_manager.run_inference()
@@ -308,7 +299,6 @@ def test_train_inference_ddpm():
             model_config=model_config,
             resume=False,
             reset=False,
-            device=DEVICE,
         )
         training_manager.run_training()
 
@@ -317,6 +307,5 @@ def test_train_inference_ddpm():
             model_config=model_config,
             model_dir=OUTPUT_DIR,
             output_dir=INFERENCE_OUTPUT_DIR,
-            device=DEVICE,
         )
         inference_manager.run_inference()

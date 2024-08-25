@@ -1,13 +1,11 @@
 import os
 import logging
-from tqdm import tqdm
-from torch.utils.data import DataLoader
 from torchio.transforms import Compose
 
 from GANDLF.data.augmentation import get_augmentation_transforms
 from gandlf_synth.data.preprocessing import get_preprocessing_transforms
 from gandlf_synth.data.postprocessing import get_postprocessing_transforms
-from typing import List, Tuple, Callable, Union, Callable
+from typing import List, Optional, Callable, Union, Callable
 
 
 def prepare_logger(logger_name: str, model_dir_path: str) -> logging.Logger:
@@ -94,46 +92,29 @@ def prepare_transforms(
         return Compose(transforms_list)
 
 
-def assert_input_correctness(
-    configured_input_shape: Tuple[int],
-    configured_n_channels: int,
-    batch_idx: int,
-    batch: object,
-):
+def determine_checkpoint_to_load(
+    model_dir: str, custom_checkpoint_path: Optional[str]
+) -> Union[str, None]:
     """
-    Assert the correctness of the input shape in a given data batch.
+    Determine the checkpoint to load for the inference process. Used in training
+    and validation managers. The checkpoint resolution order is as follows:
+    1. Custom checkpoint path.
+    2. Best checkpoint path.
+    3. Last checkpoint path.
+    If none of the above are found, the function will return None.
 
     Args:
-        configured_input_shape (Tuple[int]): The configured input shape.
-        configured_n_channels (int): The configured number of channels.
-        batch_idx (int): The index of the batch.
-        batch (object): The data batch.
-    """
-
-    expected_input_shape = [configured_n_channels] + configured_input_shape
-    # maybe in  the upcoming PRs we should consider some dict-like
-    # structure returned by the dataloader? So we can access the data
-    # by keywords, like batch["image"] or batch["label"] instead of
-    # indices
-    batch_image_shape = list(batch[0].shape)
-    assert (
-        batch_image_shape == expected_input_shape
-    ), f"Batch {batch_idx} has incorrect shape. Expected: {expected_input_shape}, got: {batch_image_shape}"
-
-
-def prepare_progress_bar(
-    dataloader: DataLoader, total_size: int, description: str, **kwargs
-):
-    """
-    Prepare the progress bar for the dataloader.
-
-    Args:
-        dataloader (DataLoader): The dataloader.
-        total_size (int): The total size of the dataloader.
-        description (str): The description of the progress bar.
-        **kwargs: Additional keyword arguments for tqdm.
+        model_dir (str): The model directory path.
+        custom_checkpoint_path (Optional[str]): The custom checkpoint path.
 
     Returns:
-        progress_bar (tqdm.tqdm): The progress bar.
+        Union[str, None]: The checkpoint path to load.
     """
-    return tqdm(enumerate(dataloader), total=total_size, desc=description, **kwargs)
+    if custom_checkpoint_path is not None:
+        return custom_checkpoint_path
+    best_checkpoint_path = os.path.join(model_dir, "checkpoints", "best.ckpt")
+    if os.path.exists(best_checkpoint_path):
+        return best_checkpoint_path
+    last_checkpoint_path = os.path.join(model_dir, "checkpoints", "last.ckpt")
+    if os.path.exists(last_checkpoint_path):
+        return last_checkpoint_path

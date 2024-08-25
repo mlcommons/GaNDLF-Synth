@@ -11,15 +11,13 @@ from gandlf_synth.data.datasets_factory import InferenceDatasetFactory
 from gandlf_synth.utils.managers_utils import (
     prepare_logger,
     prepare_postprocessing_transforms,
+    determine_checkpoint_to_load,
 )
 from gandlf_synth.utils.io_utils import prepare_images_for_saving, save_single_image
 from typing import Optional, Type, Any, Literal, Sequence
 
 
 class CustomPredictionImageSaver(pl.callbacks.BasePredictionWriter):
-    # TODO here it needs to save images
-    # ensure that it properly saves the images to inference output dir
-    # ensure that it save images with correct class label in case of labeled inference
     def __init__(
         self,
         output_dir: str,
@@ -93,7 +91,8 @@ class InferenceManager:
         dataframe_reconstruction: Optional[pd.DataFrame] = None,
         custom_checkpoint_path: Optional[str] = None,
     ) -> None:
-        """Initialize the InferenceManager.
+        """
+        Initialize the Inference Manager.
 
         Args:
             global_config (dict): The global configuration dictionary.
@@ -105,15 +104,15 @@ class InferenceManager:
             device (str, optional): The device to use for inference.
             dataframe_reconstruction (Optional[pd.DataFrame], optional): The dataframe with the data
         to perform reconstruction on. This will be used only for autoencoder-style models.
-            custom_checkpoint_path (Optional[str], optional): The custom suffix for the checkpoint,
+            custom_checkpoint_path (Optional[str], optional): The custom path for the checkpoint,
         mostly used when the model is to be loaded from specific epoch checkpoint.
         """
 
         self.global_config = global_config
         self.model_config = model_config
         self.model_dir = model_dir
-        self.output_dir = self._prepare_output_directory(output_dir, model_dir)
         self.dataframe_reconstruction = dataframe_reconstruction
+        self.output_dir = self._prepare_output_directory(output_dir, model_dir)
         self.logger = prepare_logger(self.LOGGER_NAME, self.output_dir)
 
         module_factory = ModuleFactory(
@@ -123,6 +122,7 @@ class InferenceManager:
                 global_config=self.global_config
             ),
         )
+        self.module = module_factory.get_module()
         dataset_factory = InferenceDatasetFactory(
             global_config=self.global_config,
             model_config=self.model_config,
@@ -132,9 +132,8 @@ class InferenceManager:
         self.inference_dataloader = self._prepare_inference_dataloader(
             inference_dataset
         )
-        self.module = module_factory.get_module()
         inference_logger = pl.loggers.CSVLogger(
-            self.output_dir, name="Inference_logs", flush_logs_every_n_steps=10
+            self.output_dir, name="Inference_logs", flush_logs_every_n_steps=1
         )
         prediction_saver_callback = CustomPredictionImageSaver(
             output_dir=self.output_dir,
@@ -143,10 +142,15 @@ class InferenceManager:
             write_interval="batch",
         )
         self.trainer = pl.Trainer(
-            logger=inference_logger, callbacks=[prediction_saver_callback]
+            logger=inference_logger,
+            enable_checkpointing=False,
+            callbacks=[prediction_saver_callback],
+            precision=self.global_config["precision"],  # default is 32
+            sync_batchnorm=True if torch.cuda.device_count() > 1 else False,
         )
-        self.custom_checkpoint_path = custom_checkpoint_path
-        self.checkpoint_path = self._determine_checkpoint_to_load()
+        self.checkpoint_path = determine_checkpoint_to_load(
+            model_dir=self.model_dir, custom_checkpoint_path=custom_checkpoint_path
+        )
 
     @staticmethod
     def _prepare_output_directory(output_dir: str, model_dir: str) -> str:
@@ -184,21 +188,6 @@ class InferenceManager:
         model_inference_output_path = f"{model_inference_output_path}_{index}"
         os.makedirs(model_inference_output_path)
         return model_inference_output_path
-
-    def _determine_checkpoint_to_load(self) -> str:
-        """
-        Determine the checkpoint to load for the inference process. If the custom
-        checkpoint path is provided, it will be used. Otherwise, the best checkpoint
-        will be loaded.
-        """
-        if self.custom_checkpoint_path is not None:
-            return self.custom_checkpoint_path
-        best_checkpoint_path = os.path.join(self.model_dir, "checkpoints", "best.ckpt")
-        if os.path.exists(best_checkpoint_path):
-            return best_checkpoint_path
-        last_checkpoint_path = os.path.join(self.model_dir, "last.ckpt")
-        if os.path.exists(last_checkpoint_path):
-            return last_checkpoint_path
 
     def _prepare_inference_dataloader(self, dataset) -> DataLoader:
         """

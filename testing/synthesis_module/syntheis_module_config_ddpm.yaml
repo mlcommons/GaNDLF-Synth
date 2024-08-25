@@ -45,7 +45,6 @@ inference_parameters:
 in_memory: false
 modality: rad
 model_config:
-  amp: false
   converter_type: soft
   labeling_paradigm: unlabeled
   losses:
