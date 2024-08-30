@@ -271,7 +271,8 @@ class _DiscriminatorDCGAN(nn.Module):
         )
 
         self.feature_extractor.add_module(
-            "conv5", conv(disc_init_channels * (growth_rate**3), 1, 4, 1, 0, bias=False)
+            "conv5",
+            conv(disc_init_channels * (growth_rate**3), 1, 4, 1, 0, bias=False),
         )
         self.feature_extractor.add_module("flatten", nn.Flatten(start_dim=1))
 

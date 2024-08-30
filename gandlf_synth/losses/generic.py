@@ -1,6 +1,13 @@
 import torch
 import torch.nn.functional as F
-from torch.nn import MSELoss, L1Loss,CrossEntropyLoss, BCEWithLogitsLoss, BCELoss, Module
+from torch.nn import (
+    MSELoss,
+    L1Loss,
+    CrossEntropyLoss,
+    BCEWithLogitsLoss,
+    BCELoss,
+    Module,
+)
 
 from typing import Optional
 
