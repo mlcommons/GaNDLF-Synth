@@ -4,20 +4,20 @@ data_postprocessing: {}
 data_preprocessing:
   test:
     resize:
-    - 128
-    - 128
+    - 64
+    - 64
   train:
     resize:
-    - 128
-    - 128
+    - 64
+    - 64
   val:
     resize:
-    - 128
-    - 128
+    - 64
+    - 64
   inference:
     resize:
-    - 128
-    - 128
+    - 64
+    - 64
 dataloader_config:
   inference:
     drop_last: false
@@ -40,29 +40,57 @@ dataloader_config:
     pin_memory: false
     shuffle: false
 in_memory: false
+inference_parameters:
+  batch_size: 1
+  n_images_to_generate: 10
+
 modality: rad
+precision: "32"
 model_config:
+  architecture:
+    latent_vector_size: 100
   converter_type: soft
+  input_shape:
+  - 64
+  - 64
   labeling_paradigm: unlabeled
   losses:
-    name: mse
-  model_name: vqvae
+    discriminator:
+      name: BCELogits
+    generator:
+      name: BCELogits
+  model_name: dcgan
   n_channels: 2
   n_dimensions: 2
   norm_type: batch
+  schedulers:
+    discriminator:
+      type: triangle_modified
+      step_size: 2
+    generator:
+      type: triangle_modified
+      step_size: 2
   optimizers:
+    discriminator:
       betas:
       - 0.5
       - 0.999
       lr: 0.0002
       name: adam
       weight_decay: 0.0
-  schedulers:
-    type: triangle
-    step_size: 2
+    generator:
+      betas:
+      - 0.5
+      - 0.999
+      lr: 0.0002
+      name: adam
+      weight_decay: 0.0
   tensor_shape:
-  - 128
-  - 128
+    - 64
+    - 64
+  save_eval_images_every_n_epochs: 5
+  n_fixed_images_to_generate: 10
+  fixed_images_batch_size: 10
 num_epochs: 1
 patience: 0
 save_model_every_n_epochs: 1

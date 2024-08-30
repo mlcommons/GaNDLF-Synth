@@ -22,6 +22,7 @@ class _GeneratorDCGAN(nn.Module):
         growth_rate: int,
         gen_init_channels: int,
         norm: nn.Module,
+        conv_transpose: nn.Module,
         conv: nn.Module,
     ) -> None:
         """
@@ -43,20 +44,21 @@ class _GeneratorDCGAN(nn.Module):
         layers.
             norm (torch.nn.module): A normalization layer subclassing
         torch.nn.Module (i.e. nn.BatchNorm2d)
-            conv (torch.nn.module): A convolutional layer subclassing
-        torch.nn.Module. Note that in this case this
-        should be a transposed convolution (i.e. nn.ConvTranspose2d).
+            conv_transpose (torch.nn.module): A convolutional layer subclassing
+        torch.nn.Module.
+            conv (torch.nn.module): A convolutional layer subclassing torch.nn.Module.
         """
         super().__init__()
         self.feature_extractor = nn.Sequential()
         self.feature_extractor.add_module(
-            "conv1t", conv(latent_vector_dim, gen_init_channels, 4, 1, 0, bias=False)
+            "conv1t",
+            conv_transpose(latent_vector_dim, gen_init_channels, 4, 1, 0, bias=False),
         )
         self.feature_extractor.add_module("norm1", norm(gen_init_channels))
         self.feature_extractor.add_module("relu1", nn.ReLU(inplace=True))
         self.feature_extractor.add_module(
             "conv2t",
-            conv(
+            conv_transpose(
                 gen_init_channels, gen_init_channels // growth_rate, 4, 2, 1, bias=False
             ),
         )
@@ -66,7 +68,7 @@ class _GeneratorDCGAN(nn.Module):
         self.feature_extractor.add_module("relu2", nn.ReLU(inplace=True))
         self.feature_extractor.add_module(
             "conv3t",
-            conv(
+            conv_transpose(
                 gen_init_channels // growth_rate,
                 gen_init_channels // (growth_rate**2),
                 4,
@@ -81,7 +83,7 @@ class _GeneratorDCGAN(nn.Module):
         self.feature_extractor.add_module("relu3", nn.ReLU(inplace=True))
         self.feature_extractor.add_module(
             "conv4t",
-            conv(
+            conv_transpose(
                 gen_init_channels // (growth_rate**2),
                 gen_init_channels // (growth_rate**3),
                 4,
@@ -97,7 +99,7 @@ class _GeneratorDCGAN(nn.Module):
 
         self.feature_extractor.add_module(
             "conv5t",
-            conv(
+            conv_transpose(
                 gen_init_channels // (growth_rate**3),
                 num_output_channels,
                 4,
@@ -128,13 +130,13 @@ class _GeneratorDCGAN(nn.Module):
             # )
             self.feature_extractor.add_module(
                 "conv1_smooth",
-                nn.Conv2d(num_output_channels, 128, 4, padding="same", bias=False),
+                conv(num_output_channels, 128, 4, padding="same", bias=False),
             )
             self.feature_extractor.add_module("norm1_smooth", norm(128))
             self.feature_extractor.add_module("relu1_smooth", nn.ReLU(inplace=True))
             self.feature_extractor.add_module(
                 "conv2_smooth",
-                nn.Conv2d(128, num_output_channels, 3, padding="same", bias=False),
+                conv(128, num_output_channels, 3, padding="same", bias=False),
             )
 
         self.feature_extractor.add_module("tanh", nn.Tanh())
@@ -337,7 +339,8 @@ class DCGAN(ModelBase):
             growth_rate=model_config.architecture["growth_rate_generator"],
             gen_init_channels=model_config.architecture["init_channels_generator"],
             norm=self.Norm,
-            conv=self.ConvTranspose,
+            conv_transpose=self.ConvTranspose,
+            conv=self.Conv,
             n_dimensions=self.n_dimensions,
             num_output_channels=self.n_channels,
         )

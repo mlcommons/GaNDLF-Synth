@@ -30,9 +30,12 @@ dockerfiles = [
 extra_files = []
 toplevel_package_excludes = ["testing*"]
 
+black_version = "23.11.0"
 requirements = [
+    f"black=={black_version}",
     "GANDLF@git+https://github.com/mlcommons/GandLF.git@master",
     "lightning==2.4.0",
+    "monai-generative==0.2.3",
 ]
 if __name__ == "__main__":
     setup(

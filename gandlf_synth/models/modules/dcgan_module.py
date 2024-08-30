@@ -212,7 +212,12 @@ class UnlabeledDCGANModule(SynthesisModule):
         self._epoch_log(self.train_loss_list)
 
         eval_save_interval = self.model_config.save_eval_images_every_n_epochs
-        if eval_save_interval > 0 and self.current_epoch % eval_save_interval == 0:
+        dimension = self.model_config.n_dimensions  # only for 2d
+        if (
+            dimension == 2
+            and eval_save_interval > 0
+            and self.current_epoch % eval_save_interval == 0
+        ):
             fixed_images_save_path = os.path.join(
                 self.model_dir, "eval_images", f"epoch_{self.current_epoch}"
             )

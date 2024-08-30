@@ -3,6 +3,7 @@ https://github.com/Project-MONAI/GenerativeModels by MONAI Consortium.
 It contains wrappers and class extensions for compatibility with the
 gandlf-synth library.
 """
+
 import math
 
 import torch
@@ -22,7 +23,6 @@ from typing import Type, Optional, Tuple, Any, Iterable
 
 
 class SpatialTransformerGandlf(nn.Module):
-
     """
     Transformer block for image-like data. First, project the input (aka embedding) and reshape to b, t, d. Then apply
     standard transformer action. Finally, reshape to image.
@@ -37,7 +37,7 @@ class SpatialTransformerGandlf(nn.Module):
         dropout (float, optional): Dropout probability to use. Defaults to 0.0.
         norm_num_groups (int, optional): Number of groups for the normalization. Defaults to 32.
         norm_eps (float, optional): Epsilon for the normalization. Defaults to 1e-6.
-        cross_attention_dim (int | None, optional): Number of context dimensions to use. Defaults to None.
+        cross_attention_dim (int, optional): Number of context dimensions to use. Defaults to None.
         upcast_attention (bool, optional): If True, upcast attention operations to full precision. Defaults to False.
         use_flash_attention (bool, optional): If True, use flash attention for a memory efficient attention mechanism. Defaults to False.
     """
@@ -102,7 +102,7 @@ class SpatialTransformerGandlf(nn.Module):
         )
 
     def forward(
-        self, x: torch.Tensor, context: torch.Tensor | None = None
+        self, x: torch.Tensor, context: Optional[torch.Tensor] = None
     ) -> torch.Tensor:
         batch = channel = height = width = depth = -1
         if self.spatial_dims == 2:
@@ -188,7 +188,9 @@ class DownsampleGandlf(nn.Module):
                 )
             self.op = pool(kernel_size=2, stride=2)
 
-    def forward(self, x: torch.Tensor, emb: torch.Tensor | None = None) -> torch.Tensor:
+    def forward(
+        self, x: torch.Tensor, emb: Optional[torch.Tensor] = None
+    ) -> torch.Tensor:
         del emb
         if x.shape[1] != self.num_channels:
             raise ValueError(
@@ -232,7 +234,9 @@ class UpsampleGandlf(nn.Module):
                 padding=padding,
             )
 
-    def forward(self, x: torch.Tensor, emb: torch.Tensor | None = None) -> torch.Tensor:
+    def forward(
+        self, x: torch.Tensor, emb: Optional[torch.Tensor] = None
+    ) -> torch.Tensor:
         del emb
         if x.shape[1] != self.num_channels:
             raise ValueError("Input channels should be equal to num_channels")
@@ -255,7 +259,6 @@ class UpsampleGandlf(nn.Module):
 
 
 class ResnetBlockGandlf(nn.Module):
-
     """
     Residual block with timestep conditioning.
 
@@ -265,7 +268,7 @@ class ResnetBlockGandlf(nn.Module):
         temb_channels (int): number of timestep embedding channels.
         conv (Type[nn.Module]): convolution module to use.
         pool (Type[nn.Module]): pooling module to use.
-        out_channels (int | None, optional): number of output channels. Defaults to None.
+        out_channels (int, optional): number of output channels. Defaults to None.
         up (bool, optional): if True, performs upsampling. Defaults to False.
         down (bool, optional): if True, performs downsampling. Defaults to False.
         norm_num_groups (int, optional): number of groups for the group normalization. Defaults to 32.
@@ -279,7 +282,7 @@ class ResnetBlockGandlf(nn.Module):
         temb_channels: int,
         conv: Type[nn.Module],
         pool: Type[nn.Module],
-        out_channels: int | None = None,
+        out_channels: Optional[int] = None,
         up: Optional[bool] = False,
         down: Optional[bool] = False,
         norm_num_groups: int = 32,
@@ -458,7 +461,7 @@ class DownBlockGandlf(nn.Module):
         self,
         hidden_states: torch.Tensor,
         temb: torch.Tensor,
-        context: torch.Tensor | None = None,
+        context: Optional[torch.Tensor] = None,
     ) -> tuple[torch.Tensor, list[torch.Tensor]]:
         del context
         output_states = []
@@ -575,7 +578,7 @@ class AttnDownBlockGandlf(nn.Module):
         self,
         hidden_states: torch.Tensor,
         temb: torch.Tensor,
-        context: torch.Tensor | None = None,
+        context: Optional[torch.Tensor] = None,
     ) -> tuple[torch.Tensor, list[torch.Tensor]]:
         del context
         output_states = []
@@ -611,7 +614,7 @@ class CrossAttnDownBlockGandlf(nn.Module):
         downsample_padding (int, optional): padding used in the downsampling block. Defaults to 1.
         num_head_channels (int, optional): number of channels in each attention head. Defaults to 1.
         transformer_num_layers (int, optional): number of layers of Transformer blocks to use. Defaults to 1.
-        cross_attention_dim (int | None, optional): number of context dimensions to use. Defaults to None.
+        cross_attention_dim (int, optional): number of context dimensions to use. Defaults to None.
         upcast_attention (bool, optional): if True, upcast attention operations to full precision. Defaults to False.
         use_flash_attention (bool, optional): if True, use flash attention for a memory efficient attention mechanism. Defaults to False.
         dropout_cattn (float, optional): if different from zero, this will be the dropout value for the cross-attention layers. Defaults to 0.0.
@@ -633,7 +636,7 @@ class CrossAttnDownBlockGandlf(nn.Module):
         downsample_padding: int = 1,
         num_head_channels: int = 1,
         transformer_num_layers: int = 1,
-        cross_attention_dim: int | None = None,
+        cross_attention_dim: Optional[int] = None,
         upcast_attention: bool = False,
         use_flash_attention: bool = False,
         dropout_cattn: float = 0.0,
@@ -708,7 +711,7 @@ class CrossAttnDownBlockGandlf(nn.Module):
         self,
         hidden_states: torch.Tensor,
         temb: torch.Tensor,
-        context: torch.Tensor | None = None,
+        context: Optional[torch.Tensor] = None,
     ) -> tuple[torch.Tensor, list[torch.Tensor]]:
         output_states = []
 
@@ -789,7 +792,7 @@ class AttnMidBlockGandlf(nn.Module):
         self,
         hidden_states: torch.Tensor,
         temb: torch.Tensor,
-        context: torch.Tensor | None = None,
+        context: Optional[torch.Tensor] = None,
     ) -> torch.Tensor:
         del context
         hidden_states = self.resnet_1(hidden_states, temb)
@@ -813,7 +816,7 @@ class CrossAttnMidBlockGandlf(nn.Module):
         norm_eps (float, optional): epsilon for the group normalization. Defaults to 1e-6.
         num_head_channels (int, optional): number of channels in each attention head. Defaults to 1.
         transformer_num_layers (int, optional): number of layers of Transformer blocks to use. Defaults to 1.
-        cross_attention_dim (int | None, optional): number of context dimensions to use. Defaults to None.
+        cross_attention_dim (int, optional): number of context dimensions to use. Defaults to None.
         upcast_attention (bool, optional): if True, upcast attention operations to full precision. Defaults to False.
         use_flash_attention (bool, optional): if True, use flash attention for a memory efficient attention mechanism. Defaults to False.
         dropout_cattn (float, optional): if different from zero, this will be the dropout value for the cross-attention layers. Defaults to 0.0.
@@ -830,7 +833,7 @@ class CrossAttnMidBlockGandlf(nn.Module):
         norm_eps: float = 1e-6,
         num_head_channels: int = 1,
         transformer_num_layers: int = 1,
-        cross_attention_dim: int | None = None,
+        cross_attention_dim: Optional[int] = None,
         upcast_attention: bool = False,
         use_flash_attention: bool = False,
         dropout_cattn: float = 0.0,
@@ -877,7 +880,7 @@ class CrossAttnMidBlockGandlf(nn.Module):
         self,
         hidden_states: torch.Tensor,
         temb: torch.Tensor,
-        context: torch.Tensor | None = None,
+        context: Optional[torch.Tensor] = None,
     ) -> torch.Tensor:
         hidden_states = self.resnet_1(hidden_states, temb)
         hidden_states = self.attention(hidden_states, context=context)
@@ -973,7 +976,7 @@ class UpBlockGandlf(nn.Module):
         hidden_states: torch.Tensor,
         res_hidden_states_list: list[torch.Tensor],
         temb: torch.Tensor,
-        context: torch.Tensor | None = None,
+        context: Optional[torch.Tensor] = None,
     ) -> torch.Tensor:
         del context
         for resnet in self.resnets:
@@ -1094,7 +1097,7 @@ class AttnUpBlockGandlf(nn.Module):
         hidden_states: torch.Tensor,
         res_hidden_states_list: list[torch.Tensor],
         temb: torch.Tensor,
-        context: torch.Tensor | None = None,
+        context: Optional[torch.Tensor] = None,
     ) -> torch.Tensor:
         del context
         for resnet, attn in zip(self.resnets, self.attentions):
@@ -1131,7 +1134,7 @@ class CrossAttnUpBlockGandlf(nn.Module):
         resblock_updown (bool): if True use residual blocks for upsampling.
         num_head_channels (int): number of channels in each attention head.
         transformer_num_layers (int): number of layers of Transformer blocks to use.
-        cross_attention_dim (int | None): number of context dimensions to use.
+        cross_attention_dim (int ): number of context dimensions to use.
         upcast_attention (bool): if True, upcast attention operations to full precision.
         use_flash_attention (bool): if True, use flash attention for a memory efficient attention mechanism.
         dropout_cattn (float): if different from zero, this will be the dropout value for the cross-attention layers
@@ -1153,7 +1156,7 @@ class CrossAttnUpBlockGandlf(nn.Module):
         resblock_updown: bool = False,
         num_head_channels: int = 1,
         transformer_num_layers: int = 1,
-        cross_attention_dim: int | None = None,
+        cross_attention_dim: Optional[int] = None,
         upcast_attention: bool = False,
         use_flash_attention: bool = False,
         dropout_cattn: float = 0.0,
@@ -1227,7 +1230,7 @@ class CrossAttnUpBlockGandlf(nn.Module):
         hidden_states: torch.Tensor,
         res_hidden_states_list: list[torch.Tensor],
         temb: torch.Tensor,
-        context: torch.Tensor | None = None,
+        context: Optional[torch.Tensor] = None,
     ) -> torch.Tensor:
         for resnet, attn in zip(self.resnets, self.attentions):
             # pop res hidden states
@@ -1260,7 +1263,7 @@ def get_down_block(
     transformer_num_layers: int,
     conv: Type[nn.Module],
     pool: Type[nn.Module],
-    cross_attention_dim: int | None,
+    cross_attention_dim: Optional[int] = None,
     upcast_attention: bool = False,
     use_flash_attention: bool = False,
     dropout_cattn: float = 0.0,
@@ -1328,7 +1331,7 @@ def get_mid_block(
     transformer_num_layers: int,
     conv: Type[nn.Module],
     pool: Type[nn.Module],
-    cross_attention_dim: int | None,
+    cross_attention_dim: Optional[int] = None,
     upcast_attention: bool = False,
     use_flash_attention: bool = False,
     dropout_cattn: float = 0.0,
@@ -1380,7 +1383,7 @@ def get_up_block(
     transformer_num_layers: int,
     conv: Type[nn.Module],
     pool: Type[nn.Module],
-    cross_attention_dim: int | None,
+    cross_attention_dim: Optional[int] = None,
     upcast_attention: bool = False,
     use_flash_attention: bool = False,
     dropout_cattn: float = 0.0,
@@ -1505,7 +1508,6 @@ class DDPM(ModelBase):
 
         if isinstance(num_res_blocks, int):
             num_res_blocks = convert_to_tuple(num_res_blocks, len(num_channels))
-
         self.conv_in = self.Conv(
             in_channels=self.n_channels,
             out_channels=num_channels[0],
@@ -1632,10 +1634,10 @@ class DDPM(ModelBase):
         self,
         x: torch.Tensor,
         timesteps: torch.Tensor,
-        context: torch.Tensor | None = None,
-        class_labels: torch.Tensor | None = None,
-        down_block_additional_residuals: tuple[torch.Tensor] | None = None,
-        mid_block_additional_residual: torch.Tensor | None = None,
+        context: Optional[torch.Tensor] = None,
+        class_labels: Optional[torch.Tensor] = None,
+        down_block_additional_residuals: Optional[Tuple[torch.Tensor]] = None,
+        mid_block_additional_residual: Optional[torch.Tensor] = None,
     ) -> torch.Tensor:
         """
         Args:

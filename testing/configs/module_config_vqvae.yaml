@@ -4,20 +4,20 @@ data_postprocessing: {}
 data_preprocessing:
   test:
     resize:
-    - 128
-    - 128
+    - 64
+    - 64
   train:
     resize:
-    - 128
-    - 128
+    - 64
+    - 64
   val:
     resize:
-    - 128
-    - 128
+    - 64
+    - 64
   inference:
     resize:
-    - 128
-    - 128
+    - 64
+    - 64
 dataloader_config:
   inference:
     drop_last: false
@@ -39,9 +39,6 @@ dataloader_config:
     num_workers: 0
     pin_memory: false
     shuffle: false
-inference_parameters:
-  batch_size: 1
-  n_images_to_generate: 1
 in_memory: false
 modality: rad
 model_config:
@@ -49,19 +46,25 @@ model_config:
   labeling_paradigm: unlabeled
   losses:
     name: mse
-  model_name: ddpm
+  model_name: vqvae
   n_channels: 2
   n_dimensions: 2
   norm_type: batch
   optimizers:
-      lr: 0.0001
+      betas:
+      - 0.5
+      - 0.999
+      lr: 0.0002
       name: adam
-  tensor_shape:
-  - 128
-  - 128
+      weight_decay: 0.0
   schedulers:
     type: triangle
     step_size: 2
+  tensor_shape:
+  - 64
+  - 64
+inference_parameters:
+  batch_size: 1
 num_epochs: 1
 patience: 0
 save_model_every_n_epochs: 1

@@ -1,6 +1,9 @@
 name: Install across python versions
 
-on: [push, pull_request]
+on: 
+  push:
+    branches: [ main ]
+  pull_request: {}
 
 jobs:
   pyversion_install:

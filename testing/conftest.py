@@ -1,7 +1,7 @@
 import os, pathlib, pytest
 from pytest import fixture
 
-from testing.testing_utils import prerequisites_hook_download_data
+from testing.testing_utils import prerequisites_hook_download_data, construct_csv_files
 
 
 def pytest_addoption(parser):
@@ -36,3 +36,4 @@ def pytest_sessionstart(session):
     This hook is executed before the pytest session starts.
     """
     prerequisites_hook_download_data()
+    construct_csv_files()

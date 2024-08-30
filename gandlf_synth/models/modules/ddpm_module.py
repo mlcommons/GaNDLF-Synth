@@ -35,13 +35,12 @@ class UnlabeledDDPMModule(SynthesisModule):
         noise_pred = self.inferer(
             inputs=x, diffusion_model=self.model, noise=noise, timesteps=timesteps
         )
-
         loss = self.losses(noise_pred, noise)
 
         loss_dict = {"loss": loss.detach().item()}
         self.train_loss_list.append(loss_dict)
         self._step_log(loss_dict)
-
+        return loss
         # for now, we will not calculate metrics for diffusion models in this version as this
         # requires additional generation of samples, slowing down the training
 
