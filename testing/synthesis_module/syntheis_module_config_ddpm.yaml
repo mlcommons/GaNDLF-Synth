@@ -59,6 +59,9 @@ model_config:
   tensor_shape:
   - 128
   - 128
+  schedulers:
+    type: triangle
+    step_size: 2
 num_epochs: 1
 patience: 0
 save_model_every_n_epochs: 1

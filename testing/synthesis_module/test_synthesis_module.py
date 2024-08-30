@@ -19,9 +19,7 @@ TEST_DIR = Path(__file__).parent.absolute().__str__()
 OUTPUT_DIR = os.path.join(TEST_DIR, "output")
 INFERENCE_OUTPUT_DIR = os.path.join(TEST_DIR, "inference_output")
 LOG_DIR = os.path.join(TEST_DIR, "logs")
-TEST_CONFIG_PATH = os.path.join(TEST_DIR, "syntheis_module_config.yaml")
-with open(TEST_CONFIG_PATH, "r") as config_file:
-    ORIGINAL_CONFIG = yaml.safe_load(config_file)
+
 CSV_PATH = os.path.join(os.path.dirname(TEST_DIR), "unlabeled_data.csv")
 DEVICE = "cpu"
 BASIC_LOGGER_CONFIG = logging.basicConfig(
@@ -191,7 +189,8 @@ def test_training_manager_reset_resume():
     with ContextManagerTests(
         test_dir=TEST_DIR, test_name=test_name, output_dir=OUTPUT_DIR
     ):
-        config_manager = ConfigManager(TEST_CONFIG_PATH)
+        test_config_path = os.path.join(TEST_DIR, "syntheis_module_config_vqvae.yaml")
+        config_manager = ConfigManager(test_config_path)
         global_config, model_config = config_manager.prepare_configs()
         example_dataframe = pd.read_csv(CSV_PATH)
         # Test resetting and resuming
@@ -228,28 +227,29 @@ def test_training_manager_reset_resume():
 
 def test_training_inference_dcgan():
     test_name = inspect.currentframe().f_code.co_name
-    # with ContextManagerTests(
-    #     test_dir=TEST_DIR, test_name=test_name, output_dir=OUTPUT_DIR
-    # ):
-    config_manager = ConfigManager(TEST_CONFIG_PATH)
-    global_config, model_config = config_manager.prepare_configs()
-    example_dataframe = pd.read_csv(CSV_PATH)
-    training_manager = TrainingManager(
-        train_dataframe=example_dataframe,
-        output_dir=OUTPUT_DIR,
-        global_config=global_config,
-        model_config=model_config,
-        resume=False,
-        reset=False,
-    )
-    training_manager.run_training()
-    inference_manager = InferenceManager(
-        model_config=model_config,
-        global_config=global_config,
-        model_dir=OUTPUT_DIR,
-        output_dir=INFERENCE_OUTPUT_DIR,
-    )
-    inference_manager.run_inference()
+    with ContextManagerTests(
+        test_dir=TEST_DIR, test_name=test_name, output_dir=OUTPUT_DIR
+    ):
+        test_config_path = os.path.join(TEST_DIR, "syntheis_module_config_dcgan.yaml")
+        config_manager = ConfigManager(test_config_path)
+        global_config, model_config = config_manager.prepare_configs()
+        example_dataframe = pd.read_csv(CSV_PATH)
+        training_manager = TrainingManager(
+            train_dataframe=example_dataframe,
+            output_dir=OUTPUT_DIR,
+            global_config=global_config,
+            model_config=model_config,
+            resume=False,
+            reset=False,
+        )
+        training_manager.run_training()
+        inference_manager = InferenceManager(
+            model_config=model_config,
+            global_config=global_config,
+            model_dir=OUTPUT_DIR,
+            output_dir=INFERENCE_OUTPUT_DIR,
+        )
+        inference_manager.run_inference()
 
 
 def test_training_inference_vqvae():
@@ -283,7 +283,7 @@ def test_training_inference_vqvae():
         inference_manager.run_inference()
 
 
-def test_train_inference_ddpm():
+def test_training_inference_ddpm():
     test_name = inspect.currentframe().f_code.co_name
     with ContextManagerTests(
         test_dir=TEST_DIR, test_name=test_name, output_dir=OUTPUT_DIR

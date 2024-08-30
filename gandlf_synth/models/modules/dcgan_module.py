@@ -1,7 +1,7 @@
 import os
 
 import torch
-from torch import nn
+from torch import nn, optim
 from torchvision.utils import save_image
 
 from gandlf_synth.models.architectures.base_model import ModelBase
@@ -146,6 +146,33 @@ class UnlabeledDCGANModule(SynthesisModule):
         gen_loss = get_loss(self.model_config.losses["generator"])
         return {"disc_loss": disc_loss, "gen_loss": gen_loss}
 
+    @staticmethod
+    def _initialize_scheduler(
+        disc_optimizer: optim.Optimizer,
+        gen_optimizer: optim.Optimizer,
+        schedulers_config: dict,
+    ) -> Union[Dict[str, Union[optim.lr_scheduler._LRScheduler, None]]]:
+        disc_scheduler, gen_scheduler = None, None
+
+        # currently, there is no option of using scheduler for only
+        # one of the optimizers. Either need to specify one scheduler for
+        # both optimizers or two separate schedulers for each optimizer.
+
+        if "discriminator" in schedulers_config or "generator" in schedulers_config:
+            assert (
+                "discriminator" in schedulers_config
+                and "generator" in schedulers_config
+            ), "If you want to use different schedulers for discriminator and generator, you need to specify both."
+            disc_scheduler = get_scheduler(
+                disc_optimizer, schedulers_config["discriminator"]
+            )
+            gen_scheduler = get_scheduler(gen_optimizer, schedulers_config["generator"])
+        # case when the same scheduler is used for both optimizers
+        else:
+            disc_scheduler = get_scheduler(disc_optimizer, schedulers_config)
+            gen_scheduler = get_scheduler(gen_optimizer, schedulers_config)
+        return {"disc_scheduler": disc_scheduler, "gen_scheduler": gen_scheduler}
+
     def configure_optimizers(self):
         disc_optimizer = get_optimizer(
             model_params=self.model.discriminator.parameters(),
@@ -155,6 +182,15 @@ class UnlabeledDCGANModule(SynthesisModule):
             model_params=self.model.generator.parameters(),
             optimizer_parameters=self.model_config.optimizers["generator"],
         )
+        if self.model_config.schedulers is not None:
+            schedulers = self._initialize_scheduler(
+                disc_optimizer, gen_optimizer, self.model_config.schedulers
+            )
+            return [disc_optimizer, gen_optimizer], [
+                schedulers["disc_scheduler"],
+                schedulers["gen_scheduler"],
+            ]
+
         return [disc_optimizer, gen_optimizer]
 
     def _generate_image_set_from_fixed_vector(

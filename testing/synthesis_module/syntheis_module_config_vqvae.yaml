@@ -57,6 +57,9 @@ model_config:
       lr: 0.0002
       name: adam
       weight_decay: 0.0
+  schedulers:
+    type: triangle
+    step_size: 2
   tensor_shape:
   - 128
   - 128

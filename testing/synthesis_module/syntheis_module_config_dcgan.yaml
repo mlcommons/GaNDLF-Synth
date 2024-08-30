@@ -63,7 +63,11 @@ model_config:
   norm_type: batch
   schedulers:
     discriminator:
-      triangle_modified
+      type: triangle_modified
+      step_size: 2
+    generator:
+      type: triangle_modified
+      step_size: 2
   optimizers:
     discriminator:
       betas:

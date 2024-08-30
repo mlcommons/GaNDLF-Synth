@@ -93,7 +93,7 @@ class UnlabeledDDPMModule(SynthesisModule):
         )
         if self.model_config.schedulers is not None:
             scheduler = get_scheduler(
-                optimizer, scheduler_parameters=self.model_config.schedulers
+                optimizer, scheduler_params=self.model_config.schedulers
             )
             return {"optimizer": optimizer, "lr_scheduler": scheduler}
         return optimizer

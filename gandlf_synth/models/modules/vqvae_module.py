@@ -9,7 +9,7 @@ from gandlf_synth.losses import get_loss
 from gandlf_synth.schedulers import get_scheduler
 
 
-from typing import Dict, Union, List
+from typing import Dict, Union
 
 
 class UnlabeledVQVAEModule(SynthesisModule):
@@ -93,7 +93,7 @@ class UnlabeledVQVAEModule(SynthesisModule):
         )
         if self.model_config.schedulers is not None:
             scheduler = get_scheduler(
-                optimizer, scheduler_parameters=self.model_config.schedulers
+                optimizer, scheduler_params=self.model_config.schedulers
             )
             return {"optimizer": optimizer, "lr_scheduler": scheduler}
         return optimizer

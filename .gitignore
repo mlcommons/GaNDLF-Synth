@@ -37,3 +37,6 @@ coverage.xml
 **/.ipynb_checkpoints/*
 .jupyter_ystore.db
 
+
+# development env
+working_utils/
