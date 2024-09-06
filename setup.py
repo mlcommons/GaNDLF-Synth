@@ -45,6 +45,11 @@ if __name__ == "__main__":
         author_email="gandlf@mlcommons.org",
         python_requires=">=3.8, <3.12",
         packages=find_packages(where=os.path.dirname(os.path.abspath(__file__))),
+        entry_points={
+            "console_scripts": [
+                "gandlf-synth = gandlf_synth.entrypoints.cli_tool:gandlf_synth"
+            ]
+        },
         classifiers=[
             "Development Status :: 3 - Alpha",
             "Intended Audience :: Science/Research",

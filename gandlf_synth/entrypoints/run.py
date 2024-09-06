@@ -100,8 +100,6 @@ from gandlf_synth.cli.main_run import main_run
     type=str,
     help="Optional path to specify from which checkpoint to resume training or to use for inference. In training, it takes action only if --resume is set.",
 )
-
-# TODO uncomment when new api will come online!
 @append_copyright_to_help
 def run(
     config: str,
