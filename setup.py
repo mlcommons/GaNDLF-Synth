@@ -36,6 +36,7 @@ requirements = [
     "GANDLF@git+https://github.com/mlcommons/GandLF.git@master",
     "lightning==2.4.0",
     "monai-generative==0.2.3",
+    "deepspeed==0.15.1",
 ]
 if __name__ == "__main__":
     setup(

@@ -273,6 +273,7 @@ class VQVAE(ModelBase):
                 ddp_sync=True,
             )
         )
+        self.full_module = nn.Sequential(self.encoder, self.quantizer, self.decoder)
 
     def encode(self, x: torch.Tensor) -> torch.Tensor:
         return self.encoder(x)

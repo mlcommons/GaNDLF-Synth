@@ -2,20 +2,9 @@ Some basic info:
   - Deadline for package is 10th of October 2024 (MICCAI)
   - POC by the end of August 2024, allow new developer commits in September or so
 
+Notes on distributed strategies:
 
-Dev requirements/what to keep in mind:
-  - do we need any additional CLI entrypoints? should any existing ones be extended/modified?
-  - for now our focus is to have one prototype of architecture working (AE, GAN and Diffusion model)
-  - also, a note to keep for us regarding the architecture specific pipelines - there are GANS for style transfer, i.e. CycleGAN and they need pairs of images to work
-
-
-* Szymon:
-I believe we need the following entrypoint scripts:
- - construct_csv (I think it can be used nearly 1:1 except for lable generation)
- - preprocess
- - run (here we need to change the input pipeline and empoly our custom trainign manager)
- - recover_config (compat with synth specific config)
- - config_generator (same as above)
- - update_version 
- - verify_install
- - split_csv (here we need to think on options to give, like if someone wants only some test set, or test + validation etc)
+- we currently support DDP and DeepSpeed
+- for ddp, just configure the number of nodes and type strategy name "ddp" under "compute" field in the config
+- for deepspeed, configure the number of nodes and type strategy name "deepspeed" under "compute" field in the config. Additionally, in the "strategy_config" dict under the "compute" field, specify the "config" field with the path to the deepspeed config json file. Details of this config file can be found in the deepspeed documentation here: https://www.deepspeed.ai/docs/config-json/ <br>
+Also worth looking is the Lightning guide for that: https://lightning.ai/docs/pytorch/stable/advanced/model_parallel/deepspeed.html#custom-deepspeed-config. Note that via config, you will probably need to override the optimizer choice with one of optimized ones availabe in deepspeed (look at the deepspeed documentation for that, link above). This optimizer (scheduler can be specified here too) will take precedence over the base yaml config file. 

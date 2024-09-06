@@ -1,6 +1,6 @@
 from lightning.pytorch.strategies.ddp import DDPStrategy
 from lightning.pytorch.strategies.strategy import Strategy as LightningStrategy
-from lightning.fabric.strategies.deepspeed import DeepSpeedStrategy
+from lightning.pytorch.strategies.deepspeed import DeepSpeedStrategy
 from torch.cuda import device_count
 
 from typing import Union
