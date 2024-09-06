@@ -91,6 +91,13 @@ model_config:
   save_eval_images_every_n_epochs: 5
   n_fixed_images_to_generate: 10
   fixed_images_batch_size: 10
+
+# compute:
+#   precision: "32"
+#   # num_devices: 2           # if not set, all GPUs available will be used
+#   num_nodes: 2             # if not set, one node will be used
+#   strategy: "ddp"        # it is one of ddp, deepspeed, fsdp. can be none, this way it will fallback to the default strategy (DDP if there are more than one GPU, if no gpus are available it will fallback to CPU)
+#   strategy_config: {"find_unused_parameters" : True}
 num_epochs: 1
 patience: 0
 save_model_every_n_epochs: 1

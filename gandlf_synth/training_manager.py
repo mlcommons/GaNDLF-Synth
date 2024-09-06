@@ -16,6 +16,7 @@ from gandlf_synth.utils.managers_utils import (
     prepare_transforms,
     determine_checkpoint_to_load,
 )
+from gandlf_synth.utils.distributed_utils import DistributedStrategyFactory
 from gandlf_synth.metrics import get_metrics
 
 from typing import Optional, Type, Union, List
@@ -108,24 +109,7 @@ class TrainingManager:
             if self.resume
             else None
         )
-
-        # TODO in the future, move it to separate function which would initialize
-        # this as base logger and other loggers as well (like wandb)
-        trainer_logger = pl.loggers.CSVLogger(
-            self.output_dir, name="training_logs", flush_logs_every_n_steps=10
-        )
-        callbacks = self._prepare_callbacks()
-        self.trainer = pl.Trainer(
-            max_epochs=self.global_config["num_epochs"],
-            default_root_dir=self.output_dir,
-            logger=trainer_logger,
-            callbacks=callbacks,
-            accumulate_grad_batches=self.model_config.accumulate_grad_batches,
-            gradient_clip_algorithm=self.model_config.gradient_clip_algorithm,
-            gradient_clip_val=self.model_config.gradient_clip_val,
-            precision=self.global_config["precision"],  # default is 32
-            sync_batchnorm=True if torch.cuda.device_count() > 1 else False,
-        )
+        self._initialize_trainer()
 
     def _warn_user(self):
         """
@@ -170,6 +154,39 @@ class TrainingManager:
                 "Both reset and resume flags are set to True. The reset flag will be ignored."
             )
             self.reset = False
+
+    def _initialize_trainer(self):
+        """
+        Initialize the PyTorch Lightning Trainer that will be used for training.
+
+        """
+
+        # Move it to the logger factory in the future when more
+        # loggers are implemented
+        trainer_logger = pl.loggers.CSVLogger(
+            self.output_dir, name="training_logs", flush_logs_every_n_steps=10
+        )
+        # These are not mandatory, they need to be added to the global config as defaults
+        # or pydantic port will help us
+        num_devices = self.global_config["compute"].get("num_devices", "auto")
+        num_nodes = self.global_config["compute"].get("num_nodes", 1)
+        precision = self.global_config["compute"].get("precision", 32)
+        strategy_factory = DistributedStrategyFactory(self.global_config)
+        strategy = strategy_factory.get_strategy()
+        self.trainer = pl.Trainer(
+            max_epochs=self.global_config["num_epochs"],
+            default_root_dir=self.output_dir,
+            logger=trainer_logger,
+            callbacks=self._prepare_callbacks(),
+            devices=num_devices,
+            num_nodes=num_nodes,
+            strategy=strategy,
+            accumulate_grad_batches=self.model_config.accumulate_grad_batches,
+            gradient_clip_algorithm=self.model_config.gradient_clip_algorithm,
+            gradient_clip_val=self.model_config.gradient_clip_val,
+            precision=precision,  # default is 32
+            sync_batchnorm=True if torch.cuda.device_count() > 1 else False,
+        )
 
     def _prepare_callbacks(self) -> Union[List[pl.Callback], None]:
         """

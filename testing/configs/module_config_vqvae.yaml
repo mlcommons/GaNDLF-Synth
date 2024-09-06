@@ -39,7 +39,13 @@ dataloader_config:
     num_workers: 0
     pin_memory: false
     shuffle: false
-in_memory: false
+# compute:
+  # precision: "32"
+  # num_devices: 2           # if not set, all GPUs available will be used
+  # num_nodes: 2             # if not set, one node will be used
+  # strategy: "ddp"        # it is one of ddp, deepspeed, fsdp. can be none, this way it will fallback to the default strategy (DDP if there are more than one GPU, if no gpus are available it will fallback to CPU)
+  # strategy_config: {}    # it is a set of arguments for initialization of strategies. Look at https://lightning.ai/docs/pytorch/stable/api_references.html#strategies to see each of them. For deepspeed, it is only a path to the json config.
+
 modality: rad
 model_config:
   converter_type: soft
@@ -65,7 +71,7 @@ model_config:
   - 64
 inference_parameters:
   batch_size: 1
-num_epochs: 1
+num_epochs: 1000
 patience: 0
 save_model_every_n_epochs: 1
 verbose: true

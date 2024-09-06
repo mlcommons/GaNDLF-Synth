@@ -211,6 +211,7 @@ class UnlabeledDCGANModule(SynthesisModule):
     def on_train_epoch_end(self) -> None:
         self._epoch_log(self.train_loss_list)
 
+        process_rank = self.global_rank
         eval_save_interval = self.model_config.save_eval_images_every_n_epochs
         dimension = self.model_config.n_dimensions  # only for 2d
         if (
@@ -219,10 +220,10 @@ class UnlabeledDCGANModule(SynthesisModule):
             and self.current_epoch % eval_save_interval == 0
         ):
             fixed_images_save_path = os.path.join(
-                self.model_dir, "eval_images", f"epoch_{self.current_epoch}"
+                self.model_dir, f"eval_images", f"epoch_{self.current_epoch}"
             )
             if not os.path.exists(fixed_images_save_path):
-                os.makedirs(fixed_images_save_path)
+                os.makedirs(fixed_images_save_path, exist_ok=True)
             last_batch_size = (
                 self.model_config.n_fixed_images_to_generate
                 % self.model_config.fixed_images_batch_size
@@ -244,7 +245,8 @@ class UnlabeledDCGANModule(SynthesisModule):
                     save_image(
                         fake_image,
                         os.path.join(
-                            fixed_images_save_path, f"fake_image_{i*n + n}.png"
+                            fixed_images_save_path,
+                            f"fake_image_{i*n + n}_{process_rank}.png",
                         ),
                         normalize=True,
                     )

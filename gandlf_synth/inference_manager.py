@@ -101,7 +101,6 @@ class InferenceManager:
             output_dir (str): The top directory where the output files will be saved. The
             inference results will be saved in a subdirectory of this directory, with name equal
             to the model_dir basename.
-            device (str, optional): The device to use for inference.
             dataframe_reconstruction (Optional[pd.DataFrame], optional): The dataframe with the data
         to perform reconstruction on. This will be used only for autoencoder-style models.
             custom_checkpoint_path (Optional[str], optional): The custom path for the checkpoint,
@@ -132,22 +131,7 @@ class InferenceManager:
         self.inference_dataloader = self._prepare_inference_dataloader(
             inference_dataset
         )
-        inference_logger = pl.loggers.CSVLogger(
-            self.output_dir, name="Inference_logs", flush_logs_every_n_steps=1
-        )
-        prediction_saver_callback = CustomPredictionImageSaver(
-            output_dir=self.output_dir,
-            modality=self.global_config["modality"],
-            labeling_paradigm=self.model_config.labeling_paradigm,
-            write_interval="batch",
-        )
-        self.trainer = pl.Trainer(
-            logger=inference_logger,
-            enable_checkpointing=False,
-            callbacks=[prediction_saver_callback],
-            precision=self.global_config["precision"],  # default is 32
-            sync_batchnorm=True if torch.cuda.device_count() > 1 else False,
-        )
+        self._initialize_inference_trainer()
         self.checkpoint_path = determine_checkpoint_to_load(
             model_dir=self.model_dir, custom_checkpoint_path=custom_checkpoint_path
         )
@@ -188,6 +172,35 @@ class InferenceManager:
         model_inference_output_path = f"{model_inference_output_path}_{index}"
         os.makedirs(model_inference_output_path)
         return model_inference_output_path
+
+    def _initialize_inference_trainer(self):
+        """
+        Initialize the trainer for the inference process.
+        """
+
+        # These are not mandatory, they need to be added to the global config as defaults
+        # or pydantic port will help us
+        num_devices = self.global_config["compute"].get("num_devices", "auto")
+        num_nodes = self.global_config["compute"].get("num_nodes", 1)
+        precision = self.global_config["compute"].get("precision", 32)
+        inference_logger = pl.loggers.CSVLogger(
+            self.output_dir, name="Inference_logs", flush_logs_every_n_steps=1
+        )
+        prediction_saver_callback = CustomPredictionImageSaver(
+            output_dir=self.output_dir,
+            modality=self.global_config["modality"],
+            labeling_paradigm=self.model_config.labeling_paradigm,
+            write_interval="batch",
+        )
+        self.trainer = pl.Trainer(
+            logger=inference_logger,
+            enable_checkpointing=False,
+            devices=num_devices,
+            num_nodes=num_nodes,
+            callbacks=[prediction_saver_callback],
+            precision=precision,  # default is 32
+            sync_batchnorm=True if torch.cuda.device_count() > 1 else False,
+        )
 
     def _prepare_inference_dataloader(self, dataset) -> DataLoader:
         """
