@@ -38,13 +38,6 @@ from gandlf_synth.cli.main_run import main_run
     help="Flag to indicate whether to run in training or inference mode. For inference, there needs to be a valid checkpoint in the --model-dir.",
 )
 @click.option(
-    "--device",
-    "-d",
-    default="cpu",
-    type=click.Choice(["cpu", "cuda"]),
-    help="Device to use for training or inference, either 'cuda' or 'cpu'. Defaults to 'cpu'.",
-)
-@click.option(
     "--resume",
     "-rs",
     is_flag=True,
@@ -106,7 +99,6 @@ def run(
     main_data_csv_path: str,
     model_dir: str,
     training: bool,
-    device: str,
     resume: bool,
     reset: bool,
     val_csv_path: str,
@@ -121,7 +113,6 @@ def run(
         main_data_csv_path=main_data_csv_path,
         output_dir=model_dir,
         training=training,
-        device=device,
         resume=resume,
         reset=reset,
         val_csv_path=val_csv_path,

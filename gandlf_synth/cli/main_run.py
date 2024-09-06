@@ -7,7 +7,6 @@ from gandlf_synth.config_manager import ConfigManager
 from gandlf_synth.inference_manager import InferenceManager
 
 
-# TODO think if those args names are valid
 def main_run(
     config_path: str,
     output_dir: str,
@@ -15,7 +14,6 @@ def main_run(
     training: bool = False,
     resume: bool = True,
     reset: bool = False,
-    device: str = "cpu",
     val_csv_path: Optional[str] = None,
     test_csv_path: Optional[str] = None,
     val_ratio: Optional[float] = None,
@@ -41,8 +39,7 @@ def main_run(
     checkpoint. Defaults to True.
         reset (bool): Flag to indicate whether to reset the output directory.
     Defaults to False.
-        device (str): Device to use for training or inference. Defaults to
-    "cpu".
+
         val_csv_path (str): Path to the validation data CSV file. Defaults to
     None.
         test_csv_path (str): Path to the test data CSV file. Defaults to None.
@@ -83,7 +80,6 @@ def main_run(
             resume=resume,
             val_dataframe=val_dataframe,
             test_dataframe=test_dataframe,
-            device=device,
             val_ratio=val_ratio,
             test_ratio=test_ratio,
             custom_checkpoint_path=custom_checkpoint_path,
@@ -99,7 +95,6 @@ def main_run(
             model_config=model_config,
             model_dir=output_dir,
             output_dir=inference_output_dir,
-            device=device,
             dataframe_reconstruction=main_input_dataframe,
             custom_checkpoint_path=custom_checkpoint_path,
         )
