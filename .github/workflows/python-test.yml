@@ -77,7 +77,7 @@ jobs:
         if: steps.changed-files-specific.outputs.only_modified == 'false' # Run on any non-docs change
         run: |
           pytest --cov=. --cov-report=xml -k "training_manager"
-      - name: Run training manager unit tests
+      - name: Run modules unit tests
         if: steps.changed-files-specific.outputs.only_modified == 'false' # Run on any non-docs change
         run: |
           pytest --cov=. --cov-report=xml -k "module"
