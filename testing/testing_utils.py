@@ -5,6 +5,7 @@ import gdown
 import subprocess
 from datetime import datetime
 from gandlf_synth.models.modules.module_abc import SynthesisModule
+from gandlf_synth.data.extractors_factory import DataExtractorFactory
 
 from typing import List, Optional, Type
 
@@ -126,7 +127,7 @@ def prerequisites_hook_download_data():
 def construct_csv_files():
     """
     Utility function to construct the csv files for the data.
-    The data is assumed to be in the following structure:
+    The data is assumed to be in the following structure for now:
 
     gandlf-synth/testing/data
     ├── 2d_histo
@@ -138,43 +139,42 @@ def construct_csv_files():
     └── 3d_rad
         ├── labeled
         └── unlabeled
-
     """
-    filenames_map = {"unlabeled": "unlabeled_data.csv", "labeled": "labeled_data.csv"}
+    output_filenames_map = {
+        "unlabeled": "unlabeled_data.csv",
+        "custom": "labeled_data.csv",
+        "patient": "patient_labeling_data.csv",
+    }
+    source_directories_map = {
+        "unlabeled": "unlabeled",
+        "custom": "labeled",
+        "patient": "unlabeled",
+    }
     test_dir_path = os.path.dirname(os.path.abspath(__file__))
     data_path = os.path.join(test_dir_path, "data")
     data_modalities_paths = [
         os.path.join(data_path, modality) for modality in os.listdir(data_path)
     ]
+    extractor_factory = DataExtractorFactory()
     for data_modality_path in data_modalities_paths:
-        modality_subdirs_paths = [
-            os.path.join(data_modality_path, subdir)
-            for subdir in os.listdir(data_modality_path)
-            if os.path.isdir(os.path.join(data_modality_path, subdir))
-        ]
-        modality_dimension = os.path.basename(
-            data_modality_path
+        modality_dimension, modality_name = os.path.basename(data_modality_path).split(
+            "_"
         )  # modality combinded with dimension info
-        modality = modality_dimension.split("_")[1]
-        channel_id = "t1.nii.gz,t2w.nii.gz" if modality == "rad" else ".tiff"
-        for modality_subdir_path in modality_subdirs_paths:
-            labeling_type = os.path.basename(modality_subdir_path)
-            csv_file_path = os.path.join(
+
+        channel_id = "t1.nii.gz,t2w.nii.gz" if modality_name == "rad" else ".tiff"
+        # for each modality, we construct a set of extractors
+        for labeling_paradigm in output_filenames_map.keys():
+            output_csv_path = os.path.join(
                 data_modality_path,
-                f"{modality_dimension}_{filenames_map[labeling_type]}",
+                f"{modality_dimension}_{modality_name}_{output_filenames_map[labeling_paradigm]}",
             )
-            subprocess.run(
-                [
-                    "gandlf",
-                    "construct-csv",
-                    "--input-dir",
-                    modality_subdir_path,
-                    "--output-file",
-                    csv_file_path,
-                    "--channels-id",
-                    channel_id,
-                ]
+            dataset_path = os.path.join(
+                data_modality_path, source_directories_map[labeling_paradigm]
             )
+            extractor = extractor_factory.get_data_extractor(
+                labeling_paradigm, dataset_path, channel_id
+            )
+            extractor.extract_csv_data(output_csv_path)
 
 
 def set_3d_dataloader_resize(global_config: dict):

@@ -121,7 +121,7 @@ class UnlabeledDataExtractor(CSVDataExtractor):
         return dataframe
 
 
-class LabeledDataExtractor(CSVDataExtractor):
+class CustomLabeledDataExtractor(CSVDataExtractor):
     """
     Extractor for the case when the user operates in conditional mode.
     Reads all image files and creates labels for them. The labels are
@@ -188,7 +188,7 @@ class LabeledDataExtractor(CSVDataExtractor):
                 )
                 label = determine_label_from_path(dirpath)
                 label_id = class_to_id_mapping[label]
-                channels_row_abs.extend([label, label_id])
+                channels_row_abs.extend([label_id, label])
                 rows.append(channels_row_abs)
         dataframe = pd.DataFrame(
             rows,
@@ -199,15 +199,78 @@ class LabeledDataExtractor(CSVDataExtractor):
         return dataframe
 
 
-if __name__ == "__main__":
-    dataset_path = "testing/data/unlabeled"
-    channel_id = "t2w.nii.gz,t1.nii.gz"
-    output_path = "testing/unlabeled_data.csv"
-    extractor = UnlabeledDataExtractor(dataset_path, channel_id)
-    extractor.extract_csv_data(output_path)
+class PatientLabeledDataExtractor(CSVDataExtractor):
+    """
+    Extractor for the case when the user operates in conditional mode.
+    Reads all image files and creates labels for them. The labels are
+    determined based on the patient ID.
+    Example directory structure:
 
-    dataset_path = "testing/data/labeled"
-    channel_id = "t1.nii.gz,t2w.nii.gz"
-    output_path = "testing/labeled_data.csv"
-    extractor = LabeledDataExtractor(dataset_path, channel_id)
+    dataset
+    ├── patient1
+    │   ├── t2w.nii.gz
+    │   ├── t1.nii.gz
+    ├── patient2
+    │   ├── t2w.nii.gz
+    │   ├── t1.nii.gz
+    etc.
+
+    """
+
+    def _extract_data(self, dataset_path: Path) -> pd.DataFrame:
+        """
+        Extract data from the CSV file.
+
+        Args:
+            dataset_path (Path): The path to the dataset.
+
+        Returns:
+            pd.DataFrame: The extracted data.
+        """
+        dataframe = pd.DataFrame(
+            columns=[f"Channel_{i}" for i in range(len(self.channel_id_list))]
+        )
+
+        # find all image files in the dataset based on the channel IDs
+        # TODO how we decide if we are saving the absolute path or relative path?
+        # for now I am saving the absolute path
+        rows = []
+        class_names = os.listdir(dataset_path)
+        class_to_id_mapping = {
+            class_name: i for i, class_name in enumerate(class_names)
+        }
+        for dirpath, _, files in os.walk(dataset_path):
+            if files:
+                channels_row_relative = [
+                    os.path.join(dirpath, file)
+                    for file in files
+                    if any(channel_id in file for channel_id in self.channel_id_list)
+                ]
+                channels_row_abs = extend_filenames_to_absolute_paths(
+                    channels_row_relative
+                )
+                assert len(channels_row_abs) == len(self.channel_id_list), (
+                    f"Missing channels in {dirpath}. "
+                    f"Expected channels: {self.channel_id_list}. "
+                    f"Found channels: {files}"
+                )
+                label = os.path.basename(dirpath)
+                label_id = class_to_id_mapping[label]
+                channels_row_abs.extend([label_id, label])
+                rows.append(channels_row_abs)
+
+        dataframe = pd.DataFrame(
+            rows,
+            columns=[f"Channel_{i}" for i in range(len(self.channel_id_list))]
+            + ["Label"]
+            + ["LabelMapping"],
+        )
+        return dataframe
+
+
+if __name__ == "__main__":
+    dataset_path = "testing/data/2d_rad/unlabeled"
+    channel_id = "t2w.nii.gz,t1.nii.gz"
+    output_path = "testing/patient_data_test.csv"
+    extractor = PatientLabeledDataExtractor(dataset_path, channel_id)
     extractor.extract_csv_data(output_path)
