@@ -2,7 +2,11 @@ import torch
 import pandas as pd
 from torchio.transforms import Compose
 
-from gandlf_synth.data.datasets import SynthesisDataset, UnlabeledSynthesisDataset
+from gandlf_synth.data.datasets import (
+    SynthesisDataset,
+    UnlabeledSynthesisDataset,
+    LabeledSynthesisDataset,
+)
 from gandlf_synth.utils.managers_utils import prepare_transforms
 
 from typing import Optional
@@ -11,7 +15,11 @@ from typing import Optional
 class DatasetFactory:
     """Class to create synthesis datasets based on the labeling paradigm."""
 
-    DATASET_OBJECTS = {"unlabeled": UnlabeledSynthesisDataset}
+    DATASET_OBJECTS = {
+        "unlabeled": UnlabeledSynthesisDataset,
+        "custom": LabeledSynthesisDataset,
+        "patient": LabeledSynthesisDataset,
+    }
 
     def get_dataset(
         self,
