@@ -173,7 +173,7 @@ class InferenceManager:
         os.makedirs(model_inference_output_path)
         return model_inference_output_path
 
-    def _initialize_inference_trainer(self):
+    def _initialize_trainer_for_inference(self):
         """
         Initialize the trainer for the inference process.
         """
