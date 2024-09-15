@@ -131,7 +131,7 @@ class InferenceManager:
         self.inference_dataloader = self._prepare_inference_dataloader(
             inference_dataset
         )
-        self._initialize_inference_trainer()
+        self._initialize_trainer_for_inference()
         self.checkpoint_path = determine_checkpoint_to_load(
             model_dir=self.model_dir, custom_checkpoint_path=custom_checkpoint_path
         )
