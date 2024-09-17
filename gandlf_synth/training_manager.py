@@ -75,7 +75,12 @@ class TrainingManager:
         self.model_config = model_config
         self.resume = resume
         self.reset = reset
+        # Temporary assertion for the VQVAE behaviour when qunatization is enabled
 
+        if global_config["model"]["name"].lower() == "vqvae":
+            assert (
+                global_config["compute"]["precision"] == 32
+            ), "VQVAE model requires 32-bit precision due to possible gradient issues with quantization."
         self._prepare_output_dir()
         self.logger = prepare_logger(self.LOGGER_NAME, self.output_dir)
         self._load_or_save_configs()

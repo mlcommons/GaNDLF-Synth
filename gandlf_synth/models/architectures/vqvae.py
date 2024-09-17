@@ -515,7 +515,7 @@ class VQVAE(ModelBase):
                 ],
                 decay=model_config.architecture["EMA_decay"],
                 epsilon=model_config.architecture["epsilon"],
-                ddp_sync=False,  # FIXME! Attention needed, if this is properly synchronizing with all supported dist strategies
+                ddp_sync=False,  # FIXME: possible problem with allreduce sync when the deepspeed is used
             )
         )
         self.full_module = nn.Sequential(self.encoder, self.quantizer, self.decoder)
