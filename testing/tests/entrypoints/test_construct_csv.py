@@ -77,7 +77,7 @@ test_cases = [
 
 
 @pytest.mark.parametrize("case", test_cases)
-def test_case(cli_runner: CliRunner, case: CliCase):
+def test_case_csv_construct(cli_runner: CliRunner, case: CliCase):
     run_test_case(
         case=case,
         cli_runner=cli_runner,

@@ -32,40 +32,42 @@ from gandlf_synth.cli.main_run import main_run
     type=click.Path(file_okay=False, dir_okay=True),
 )
 @click.option(
-    "--training/--inference",
-    "-t/-i",
-    required=True,
+    "--training",
+    "-t",
+    is_flag=True,
     help="Flag to indicate whether to run in training or inference mode. For inference, there needs to be a valid checkpoint in the --model-dir.",
 )
 @click.option(
     "--resume",
     "-rs",
+    required=False,
     is_flag=True,
     help="Resume previous training by only keeping model dict in 'model-dir'",
 )
 @click.option(
     "--reset",
     "-rt",
+    required=False,
     is_flag=True,
     help="Completely resets the previous run by deleting 'model-dir'",
 )
 @click.option(
     "--val-csv-path",
-    "-v_csv",
+    "-v-csv",
     required=False,
     type=str,
     help="Optional path to the CSV file which contains the validation data used during training.",
 )
 @click.option(
     "--test-csv-path",
-    "-t_csv",
+    "-t-csv",
     required=False,
     type=str,
     help="Optional path to the CSV file which contains the test data used after training.",
 )
 @click.option(
     "--val-ratio",
-    "-v_r",
+    "-vr",
     required=False,
     default=0.0,
     type=float,
@@ -73,7 +75,7 @@ from gandlf_synth.cli.main_run import main_run
 )
 @click.option(
     "--test-ratio",
-    "-t_r",
+    "-tr",
     required=False,
     default=0.0,
     type=float,

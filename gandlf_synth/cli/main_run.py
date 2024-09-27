@@ -59,7 +59,7 @@ def main_run(
     main_input_dataframe = (
         pd.read_csv(main_data_csv_path) if main_data_csv_path is not None else None
     )
-
+    print(f"Training: {training}")
     if training:
         assert (
             main_input_dataframe is not None
@@ -87,6 +87,9 @@ def main_run(
         training_manager.run_training()
 
     if not training:
+        print("Running in inference mode.")
+        print(f"Output directory: {output_dir}")
+        print(f"Inference output directory: {inference_output_dir}")
         assert (
             inference_output_dir is not None
         ), "`inference_output_dir` must be specified when running in inference mode!"
