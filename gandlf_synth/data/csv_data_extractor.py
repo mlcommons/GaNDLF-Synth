@@ -42,25 +42,25 @@ class CSVDataExtractor(ABC):
         pass
 
     @staticmethod
-    def _save_csv(dataframe: pd.DataFrame, output_path: str) -> None:
+    def _save_csv(dataframe: pd.DataFrame, output_file: str) -> None:
         """
         Save the dataframe to a CSV file.
 
         Args:
             dataframe (pd.DataFrame): The dataframe to be saved.
-            output_path (str): The path to the CSV file.
+            output_file (str): The path to the CSV file.
         """
-        dataframe.to_csv(output_path, index=False)
+        dataframe.to_csv(output_file, index=False)
 
-    def extract_csv_data(self, output_path: str) -> None:
+    def extract_csv_data(self, output_file: str) -> None:
         """
         Extract data from the CSV file and save it to a new CSV file.
 
         Args:
-            output_path (str): The path to the output CSV file.
+            output_file (str): The path to the output CSV file.
         """
         data = self._extract_data(self.dataset_path)
-        self._save_csv(data, output_path)
+        self._save_csv(data, output_file)
 
 
 class UnlabeledDataExtractor(CSVDataExtractor):

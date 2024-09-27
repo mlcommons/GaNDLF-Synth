@@ -10,26 +10,27 @@ from gandlf_synth.version import __version__
 
 @click.command()
 @click.option(
-    "--input_dir",
+    "--input-dir",
     "-i",
     required=True,
     help="Path to the input directory.",
     type=click.Path(exists=True, file_okay=False, dir_okay=True),
 )
 @click.option(
-    "--channels_id",
+    "--channels-id",
     "-ch",
     required=True,
     help="Channel ID to be used. This is a comma-separated string, denoting the channel IDs, e.g., 't1w.nii.gz,t2w.nii.gz'.",
 )
 @click.option(
-    "--labeling_paradigm",
+    "--labeling-paradigm",
     "-l",
     required=True,
+    type=click.Choice(["unlabeled", "patient", "custom"]),
     help="Labeling paradigm to be used. Available paradigms: ['unlabeled', 'patient', 'custom']",
 )
 @click.option(
-    "--output_path",
+    "--output-file",
     "-o",
     required=True,
     help="Path to the output CSV file.",
@@ -37,7 +38,24 @@ from gandlf_synth.version import __version__
 )
 @append_copyright_to_help
 def construct_csv(
-    input_dir: str, channels_id: str, labeling_paradigm: str, output_path: str
+    input_dir: str, channels_id: str, labeling_paradigm: str, output_file: str
+):
+    """
+    Construct a CSV file based on the labeling paradigm.
+
+    Args:
+        input_dir (str): Path to the input directory.
+        channels_id (str): Channel ID to be used. This is a comma-separated string,
+    denoting the channel IDs, e.g., "t1w.nii.gz,t2w.nii.gz".
+        labeling_paradigm (str): Labeling paradigm to be used. Available paradigms:
+    ["unlabeled", "patient", "custom"]
+        output_path (str): Path to the output CSV file.
+    """
+    _construct_csv(input_dir, channels_id, labeling_paradigm, output_file)
+
+
+def _construct_csv(
+    input_dir: str, channels_id: str, labeling_paradigm: str, output_file: str
 ):
     """
     Construct a CSV file based on the labeling paradigm.
@@ -53,7 +71,7 @@ def construct_csv(
     extractor = DataExtractorFactory().get_data_extractor(
         labeling_paradigm, input_dir, channels_id
     )
-    extractor.extract_csv_data(output_path)
+    extractor.extract_csv_data(output_file)
 
 
 if __name__ == "__main__":

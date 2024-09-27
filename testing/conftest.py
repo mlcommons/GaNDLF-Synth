@@ -1,6 +1,6 @@
 import os, pathlib, pytest
 from pytest import fixture
-
+from click.testing import CliRunner
 from testing.testing_utils import prerequisites_hook_download_data, construct_csv_files
 
 
@@ -13,6 +13,11 @@ def pytest_addoption(parser):
 @fixture()
 def device(request):
     return request.config.getoption("--device")
+
+
+@pytest.fixture
+def cli_runner():
+    return CliRunner()
 
 
 @pytest.hookimpl(tryfirst=True, hookwrapper=True)

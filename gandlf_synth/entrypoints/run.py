@@ -50,21 +50,21 @@ from gandlf_synth.cli.main_run import main_run
     help="Completely resets the previous run by deleting 'model-dir'",
 )
 @click.option(
-    "--val_csv_path",
+    "--val-csv-path",
     "-v_csv",
     required=False,
     type=str,
     help="Optional path to the CSV file which contains the validation data used during training.",
 )
 @click.option(
-    "--test_csv_path",
+    "--test-csv-path",
     "-t_csv",
     required=False,
     type=str,
     help="Optional path to the CSV file which contains the test data used after training.",
 )
 @click.option(
-    "--val_ratio",
+    "--val-ratio",
     "-v_r",
     required=False,
     default=0.0,
@@ -72,7 +72,7 @@ from gandlf_synth.cli.main_run import main_run
     help="Optional ratio of the validation data to use for training. If specified along with val_csv_path, the data from val_csv_path will be used.",
 )
 @click.option(
-    "--test_ratio",
+    "--test-ratio",
     "-t_r",
     required=False,
     default=0.0,
@@ -80,15 +80,15 @@ from gandlf_synth.cli.main_run import main_run
     help="Optional ratio of the test data to use for training. If specified along with test_csv_path, the data from test_csv_path will be used.",
 )
 @click.option(
-    "--inference_output_dir",
+    "--inference-output-dir",
     "-i-dir",
     required=False,
     type=str,
     help="Optional path to the CSV file which contains the validation data used during training.",
 )
 @click.option(
-    "--custom_checkpoint_path",
-    "-ckpt_path",
+    "--custom-checkpoint-path",
+    "-ckpt-path",
     required=False,
     type=str,
     help="Optional path to specify from which checkpoint to resume training or to use for inference. In training, it takes action only if --resume is set.",
