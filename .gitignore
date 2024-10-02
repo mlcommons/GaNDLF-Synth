@@ -1,0 +1,42 @@
+*.mypy_cache*
+__pycache__/
+
+#teporalirly for tests it is here
+GaNDLF/ 
+
+venv/*
+*venv*
+__pycache__
+*.egg-info*
+*/__pycache__/*
+.vscode
+*.py.*
+*.pkl
+*.swp
+dist/*
+*egg*
+
+*DS_Store
+*output*
+*experiment*
+*exp*
+*_build*
+*build*
+debug.log
+vips*
+testing/data/*
+testing/*.csv
+testing/data_output/*
+.coverage
+testing/config_segmentation_temp.yaml
+testing/failures.log
+coverage.xml
+
+
+# Ingnore any ipynbcheckpoints anywhere
+**/.ipynb_checkpoints/*
+.jupyter_ystore.db
+
+
+# development env
+working_utils/
