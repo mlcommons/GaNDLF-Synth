@@ -1,9 +1,7 @@
-Some basic info:
-  - Deadline for package is 10th of October 2024 (MICCAI)
-  - POC by the end of August 2024, allow new developer commits in September or so
+General documentation is in preparation, it will be made available soon.
 
 Mixed precision training:
-We currently support mixed precision training based on [lightning](https://pytorch-lightning.readthedocs.io/en/latest/advanced/mixed_precision.html). To use mixed precision, please set the "precision" field in the "compute" field. All available precision ooptions can be found under the link above. 
+We currently support mixed precision training based on [lightning](https://pytorch-lightning.readthedocs.io/en/latest/advanced/mixed_precision.html). To use mixed precision, please set the "precision" field in the "compute" field. All available precision options can be found under the link above. 
 
 ```yaml
 compute:
