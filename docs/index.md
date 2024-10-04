@@ -1,17 +1,17 @@
-# GaNDLF
+# GaNDLF-Synth
 
-The **G**ener**a**lly **N**uanced **D**eep **L**earning **F**ramework - **synth**esis (GaNDLF-synth) for reproducible and automated deep generative modeling in medical imaging.
+The **G**ener**a**lly **N**uanced **D**eep **L**earning **F**ramework - **synth**esis (GaNDLF-Synth) for reproducible and automated deep generative modeling in medical imaging.
 
-## Why use GaNDLF-synth?
+## Why use GaNDLF-Synth?
 
-GaNDLF-synth was developed to lower the barrier to AI, enabling reproducibility, translation, and deployment regarding usage of generative models in medical imaging.
+GaNDLF-Synth was developed to lower the barrier to AI, enabling reproducibility, translation, and deployment regarding usage of generative models in medical imaging.
 It is an extension of the [GaNDLF](https://docs.mlcommons.org/GaNDLF/) framework, which is a part of the [MLCommons](https://mlcommons.org/) initiative.
-GaNDLF-synth aims to extend the capabilities of GaNDLF to include generative models, such as GANs, VAEs, and diffusion models, while adhering to the same principles.<br>
+GaNDLF-Synth aims to extend the capabilities of GaNDLF to include generative models, such as GANs, VAEs, and diffusion models, while adhering to the same principles.<br>
 As an out-of-the-box solution, GaNDLF alleviates the need to build from scratch. Users may kickstart their project
 by modifying only **a configuration (config) file** that provides guidelines for the envisioned pipeline
 and **CSV inputs** that describe the training data.
 
-## Range of GaNDLF-synth functionalities:
+## Range of GaNDLF-Synth functionalities:
 
 - Supports multiple
     - Deep Generative model architectures
@@ -35,11 +35,18 @@ and **CSV inputs** that describe the training data.
 - [Acknowledgements](./acknowledgements.md)
 
 ## Citation
-Please cite the following article for GaNDLF-synth:
-<!-- TODO -->
+Please cite the following article for GaNDLF-Synth:
+@misc{pati2024gandlfsynthframeworkdemocratizegenerative,
+      title={GaNDLF-Synth: A Framework to Democratize Generative AI for (Bio)Medical Imaging}, 
+      author={Sarthak Pati and Szymon Mazurek and Spyridon Bakas},
+      year={2024},
+      eprint={2410.00173},
+      archivePrefix={arXiv},
+      primaryClass={cs.LG},
+      url={https://arxiv.org/abs/2410.00173}, 
+}
 
 ## Contact
 GaNDLF developers can be reached via the following ways:
-<!-- TODO -->
-<!-- - [GitHub Discussions](https://github.com/mlcommons/GaNDLF/discussions) -->
+- [GitHub Discussions](https://github.com/mlcommons/GaNDLF-Synth/discussions)
 - [Email](mailto:gandlf@mlcommons.org)

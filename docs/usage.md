@@ -15,97 +15,21 @@ GaNDLF-Synth supports all of these steps. Some of the steps are treated as optio
 Please follow the [installation instructions](./setup.md#installation) to install GaNDLF-Synth.
 
 ## Preparing the Data
-
-### Anonymize Data
-
-A major reason why one would want to anonymize data is to ensure that trained models do not inadvertently encode protected health information [[1](https://doi.org/10.1145/3436755),[2](https://doi.org/10.1038/s42256-020-0186-1)]. For this task, one may use base GaNDLF. GaNDLF can anonymize one or multiple images using the `gandlf anonymizer` command as follows:
-
-```bash
-# continue from previous shell
-(venv_gandlf) $> gandlf anonymizer
-  # -h, --help         Show help message and exit
-  -c ./samples/config_anonymizer.yaml \ # anonymizer configuration - needs to be a valid YAML (check syntax using https://yamlchecker.com/)
-  -i ./input_dir_or_file \ # input directory containing series of images to anonymize or a single image
-  -o ./output_dir_or_file # output directory to save anonymized images or a single output image file (for a DICOM to NIfTi conversion specify a .nii.gz file)
-```
-### Cleanup/Harmonize/Curate Data
-
-It is **highly** recommended that the dataset you want to train/infer on has been harmonized. The following requirements should be considered:
-
-- Registration
-    - Within-modality co-registration [[1](https://doi.org/10.1109/TMI.2014.2377694), [2](https://doi.org/10.1038/sdata.2017.117), [3](https://arxiv.org/abs/1811.02629)].
-    - **OPTIONAL**: Registration of all datasets to patient atlas, if applicable [[1](https://doi.org/10.1109/TMI.2014.2377694), [2](https://doi.org/10.1038/sdata.2017.117), [3](https://arxiv.org/abs/1811.02629)].
-- **Intensity harmonization**: Same intensity profile, i.e., normalization [[4](https://doi.org/10.1016/j.nicl.2014.08.008), [5](https://visualstudiomagazine.com/articles/2020/08/04/ml-data-prep-normalization.aspx), [6](https://developers.google.com/machine-learning/data-prep/transform/normalization), [7](https://towardsdatascience.com/understand-data-normalization-in-machine-learning-8ff3062101f0)]. GaNDLF offers [multiple options](#customize-the-training) for intensity normalization, including Z-scoring, Min-Max scaling, and Histogram matching. 
-- **Resolution harmonization**: Ensures that the images have *similar* physical definitions (i.e., voxel/pixel size/resolution/spacing). An illustration of the impact of voxel size/resolution/spacing can be found [here](https://upenn.box.com/v/spacingsIssue), and it is encourage to read [this article](https://www.nature.com/articles/s41592-020-01008-z#:~:text=of%20all%20images.-,Resampling,-In%20some%20datasets) to added context on how this issue impacts a deep learning pipeline. This functionality is available via [GaNDLF's preprocessing module](#customize-the-training).
-
-Recommended tools for tackling all aforementioned curation and annotation tasks: 
-- [Cancer Imaging Phenomics Toolkit (CaPTk)](https://github.com/CBICA/CaPTk) 
-- [Federated Tumor Segmentation (FeTS) Front End](https://github.com/FETS-AI/Front-End)
-- [3D Slicer](https://www.slicer.org)
-- [ITK-SNAP](http://www.itksnap.org/pmwiki/pmwiki.php)
-
-### Offline Patch Extraction (for histology images only)
-
-GaNDLF can be used to convert a Whole Slide Image (WSI) with or without a corresponding label map to patches/tiles using GaNDLF’s integrated patch miner, which would need the following files:
-
-1. A configuration file that dictates how the patches/tiles will be extracted. A sample configuration to extract patches is presented [here](https://github.com/mlcommons/GaNDLF/blob/master/samples/config_getting_started_segmentation_histo2d_patchExtraction.yaml). The options that the can be defined in the configuration are as follows:
-     - `patch_size`: defines the size of the patches to extract, should be a tuple type of integers (e.g., `[256,256]`) or a string containing patch size in microns (e.g., `[100m,100m]`). This parameter always needs to be specified.
-     - `scale`: scale at which operations such as tissue mask calculation happens; defaults to `16`.
-     - `num_patches`: defines the number of patches to extract, use `-1` to mine until exhaustion; defaults to `-1`.
-     - `value_map`: mapping RGB values in label image to integer values for training; defaults to `None`.
-     - `read_type`: either `random` or `sequential` (latter is more efficient); defaults to `random`.
-     - `overlap_factor`: Portion of patches that are allowed to overlap (`0->1`); defaults to `0.0`.
-     - `num_workers`: number of workers to use for patch extraction (note that this does not scale according to the number of threads available on your machine); defaults to `1`.
-2. A CSV file with the following columns:
-     - `SubjectID`: the ID of the subject for the WSI
-     - `Channel_0`: the full path to the WSI file which will be used to extract patches
-     - `Label`: (optional) full path to the label map file
-
-Once these files are present, the patch miner can be run using the following command:
-
-```bash
-# continue from previous shell
-(venv_gandlf) $> gandlf patch-miner \ 
-  # -h, --help         Show help message and exit
-  -c ./exp_patchMiner/config.yaml \ # patch extraction configuration - needs to be a valid YAML (check syntax using https://yamlchecker.com/)
-  -i ./exp_patchMiner/input.csv \ # data in CSV format 
-  -o ./exp_patchMiner/output_dir/ # output directory
-```
-
-### Running preprocessing before training/inference (optional)
-
-Running preprocessing before training/inference is optional, but recommended. It will significantly reduce the computational footprint during training/inference at the expense of larger storage requirements. Use the following command, which will save the processed data in `./experiment_0/output_dir/` with a new data CSV and the corresponding model configuration:
-
-```bash
-# continue from previous shell
-(venv_gandlf) $> gandlf preprocess \
-  # -h, --help         Show help message and exit
-  -c ./experiment_0/model.yaml \ # model configuration - needs to be a valid YAML (check syntax using https://yamlchecker.com/)
-  -i ./experiment_0/train.csv \ # data in CSV format 
-  -o ./experiment_0/output_dir/ # output directory
-```
-
-
 ## Constructing the Data CSV
 
 This application can leverage multiple channels/modalities for training while using a multi-class segmentation file. The expected format is shown as an example in [samples/sample_train.csv](https://github.com/mlcommons/GaNDLF/blob/master/samples/sample_train.csv) and needs to be structured with the following header format (which shows a CSV with `N` subjects, each having `X` channels/modalities that need to be processed):
 
 ```csv
-SubjectID,Channel_0,Channel_1,...,Channel_X,Label
-001,/full/path/001/0.nii.gz,/full/path/001/1.nii.gz,...,/full/path/001/X.nii.gz,/full/path/001/segmentation.nii.gz
-002,/full/path/002/0.nii.gz,/full/path/002/1.nii.gz,...,/full/path/002/X.nii.gz,/full/path/002/segmentation.nii.gz
+Channel_0,Channel_1,...,Channel_X
+/full/path/001/0.nii.gz,/full/path/001/1.nii.gz,...
+/full/path/002/0.nii.gz,/full/path/002/1.nii.gz,...
 ...
-N,/full/path/N/0.nii.gz,/full/path/N/1.nii.gz,...,/full/path/N/X.nii.gz,/full/path/N/segmentation.nii.gz
+/full/path/N/0.nii.gz,/full/path/N/1.nii.gz,...,
 ```
 
 **Notes:**
 
-- `Channel` can be substituted with `Modality` or `Image`
-- `Label` can be substituted with `Mask` or `Segmentation` and is used to specify the annotation file for segmentation models
-- For classification/regression, add a column called `ValueToPredict`. Currently, we are supporting only a single value prediction per model.
-- Only a single `Label` or `ValueToPredict` header should be passed 
-    - Multiple segmentation classes should be in a single file with unique label numbers.
-    - Multi-label classification/regression is currently not supported.
+- For labeled data, the CSV will have additonal columns for the labels assigned to given set of channels.
 
 ### Using the `gandlf construct-csv` command
 
@@ -156,19 +80,6 @@ The following command shows how the script works:
 - `SubjectID` or `PatientName` is used to ensure that the randomized split is done per-subject rather than per-image.
 - For data arrangement different to what is described above, a customized script will need to be written to generate the CSV, or you can enter the data manually into the CSV. 
 
-### Using the `gandlf split-csv` command
-
-To split the data CSV into training, validation, and testing CSVs, the `gandlf split-csv` script can be used. The following command shows how the script works:
-
-```bash
-# continue from previous shell
-(venv_gandlf) $> gandlf split-csv \
-  # -h, --help         Show help message and exit
-  -i ./experiment_0/train_data.csv \ # output CSV from the `gandlf construct-csv` script
-  -c $gandlf_config \ # the GaNDLF config (in YAML) with the `nested_training` key specified to the folds needed
-  -o $output_dir # the output directory to save the split data
-```
-
 
 ## Customize the Training
 
@@ -205,54 +116,6 @@ You can use the following code snippet to run GaNDLF:
   # -rt , --reset # [optional] completely resets the previous run by deleting `model-dir`
   # -rm , --resume # [optional] resume previous training by only keeping model dict in `model-dir`
 ```
-
-### Special notes for Inference for Histology images
-
-- If you trying to perform inference on pre-extracted patches, please change the `modality` key in the configuration to `rad`. This will ensure the histology-specific pipelines are not triggered.
-- However, if you are trying to perform inference on full WSIs, `modality` should be kept as `histo`.
-
-
-## Generate Metrics 
-
-GaNDLF provides a script to generate metrics after an inference process is done.The script can be used as follows:
-
-```bash
-# continue from previous shell
-(venv_gandlf) $> gandlf generate-metrics \
-  # -h, --help         Show help message and exit
-  # -v, --version      Show program's version number and exit.
-  -c , --config       The configuration file (contains all the information related to the training/inference session)
-  -i , --input-data    CSV file that is used to generate the metrics; should contain 3 columns: 'SubjectID,Target,Prediction'
-  -o , --output-file   Location to save the output dictionary. If not provided, will print to stdout.
-```
-
-Once you have your CSV in the specific format, you can pass it on to generate the metrics. Here is an example for segmentation:
-
-```csv
-SubjectID,Target,Prediction
-001,/path/to/001/target.nii.gz,/path/to/001/prediction.nii.gz
-002,/path/to/002/target.nii.gz,/path/to/002/prediction.nii.gz
-...
-```
-
-Similarly, for classification or regression (`A`, `B`, `C`, `D` are integers for classification and floats for regression):
-
-```csv
-SubjectID,Target,Prediction
-001,A,B
-002,C,D
-...
-```
-
-To generate image to image metrics for synthesis tasks (including for the BraTS synthesis tasks [[1](https://www.synapse.org/#!Synapse:syn51156910/wiki/622356), [2](https://www.synapse.org/#!Synapse:syn51156910/wiki/622357)]), ensure that the config has `problem_type: synthesis`, and the CSV can be in the same format as segmentation (note that the `Mask` column is optional):
-
-```csv
-SubjectID,Target,Prediction,Mask
-001,/path/to/001/target_image.nii.gz,/path/to/001/prediction_image.nii.gz,/path/to/001/brain_mask.nii.gz
-002,/path/to/002/target_image.nii.gz,/path/to/002/prediction_image.nii.gz,/path/to/002/brain_mask.nii.gz
-...
-```
-
 
 ## Parallelize the Training
 

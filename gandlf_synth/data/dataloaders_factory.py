@@ -3,7 +3,6 @@ from gandlf_synth.data.datasets import SynthesisDataset
 from typing import Type
 
 
-# WIP
 class DataloaderFactory:
     """
     Class responsible for creating dataloaders.
