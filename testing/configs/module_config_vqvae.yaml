@@ -1,4 +1,3 @@
-batch_size: 1
 data_augmentation: {}
 data_postprocessing: {}
 data_preprocessing:
@@ -18,6 +17,7 @@ data_preprocessing:
     resize:
     - 64
     - 64
+
 dataloader_config:
   inference:
     drop_last: false
@@ -39,7 +39,7 @@ dataloader_config:
     num_workers: 0
     pin_memory: false
     shuffle: false
-modality: rad
+
 model_config:
   converter_type: soft
   labeling_paradigm: unlabeled
@@ -62,12 +62,14 @@ model_config:
   tensor_shape:
   - 64
   - 64
+
 inference_parameters:
   batch_size: 1
+modality: rad
+batch_size: 1
 num_epochs: 1
-patience: 0
 save_model_every_n_epochs: 1
-verbose: true
 version:
   maximum: 0.0.20-dev
   minimum: 0.0.14
+

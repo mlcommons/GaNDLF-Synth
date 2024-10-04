@@ -1,4 +1,3 @@
-batch_size: 1
 data_augmentation: {}
 data_postprocessing: {}
 data_preprocessing:
@@ -18,6 +17,7 @@ data_preprocessing:
     resize:
     - 64
     - 64
+
 dataloader_config:
   inference:
     drop_last: false
@@ -39,11 +39,8 @@ dataloader_config:
     num_workers: 0
     pin_memory: false
     shuffle: false
-inference_parameters:
-  batch_size: 1
-  n_images_to_generate: 1
-in_memory: false
-modality: rad
+
+
 model_config:
   architecture:
     num_eval_timesteps: 1
@@ -65,10 +62,14 @@ model_config:
   schedulers:
     type: triangle
     step_size: 2
+  
+inference_parameters:
+  batch_size: 1
+  n_images_to_generate: 1
+modality: rad
 num_epochs: 1
-patience: 0
+batch_size: 1
 save_model_every_n_epochs: 1
-verbose: true
 version:
   maximum: 0.0.20-dev
   minimum: 0.0.14
