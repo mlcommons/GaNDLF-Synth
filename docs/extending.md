@@ -19,7 +19,6 @@ Before starting to work on the code-level on GaNDLF, please follow the [instruct
 ## Overall Architecture
 
 - Command-line parsing: [gandlf run](https://github.com/mlcommons/GaNDLF-Synth/blob/main/gandlf_synth/entrypoints/run.py)
-<!-- - Parameters from [training configuration](https://github.com/mlcommons/GaNDLF-Synth/blob/main/samples/config_all_options.yaml) get passed as a `dict` via the [config manager](https://github.com/mlcommons/GaNDLF-Synth/blob/main/GANDLF/config_manager.py) -->
 - [Config Manager](https://github.com/mlcommons/GaNDLF-Synth/blob/main/gandlf_synth/config_manager.py): 
     - Handles configuration parsing
     - Provides configuration to other modules
@@ -80,9 +79,8 @@ Example: `gandlf-synth run` [CLI command](https://github.com/mlcommons/GaNDLF-Sy
 The command would be available under `gandlf-synth your-subcommand-name` CLI command.
 
 
-<!-- ## Update parameters
-TODO - this sample file needs to be created - possibly for separate architectures too
-For any new feature, please ensure the corresponding option in the [sample configuration](https://github.com/mlcommons/GaNDLF/blob/master/samples/sample_training.yaml) is added, so that others can review/use/extend it as needed. -->
+## Update parameters
+For any new feature that is configurable via config, please ensure the corresponding option in the ["extending" section of this documentation](./extending.md) is added, so that others can review/use/extend it as needed.
 
 ## Update Tests
 

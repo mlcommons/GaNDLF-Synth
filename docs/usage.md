@@ -191,7 +191,6 @@ compute:
   strategy_config: {}    # additional strategy specific kwargs, see https://lightning.ai/docs/pytorch/stable/api/lightning.pytorch.strategies.DDPStrategy.html#lightning.pytorch.strategies.DDPStrategy
 
 ```
-
 For deepspeed, we leverage the original `deepspeed` library config to set the distributed parameters. To use `deepspeed`, configure the `compute` field as follows:
 
 ```yaml

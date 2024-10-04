@@ -67,7 +67,4 @@ inference_parameters:
 num_epochs: 1
 patience: 0
 save_model_every_n_epochs: 1
-verbose: true
-version:
-  maximum: 0.0.20-dev
-  minimum: 0.0.14
+

@@ -94,6 +94,3 @@ num_epochs: 1
 batch_size: 1
 modality: rad
 save_model_every_n_epochs: 1
-version:
-  maximum: 0.0.20-dev
-  minimum: 0.0.14
