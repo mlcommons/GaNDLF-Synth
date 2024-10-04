@@ -10,9 +10,6 @@ TODO
 ## Dataloader configs
 TODO
 
-## Loss
-TODO
-
 ## Data preprocessing
 GaNDLF-Synth interfaces GaNDLF core framework for data preprocessing. To see available data preprocessing options, see [here](https://github.com/mlcommons/GaNDLF/blob/master/GANDLF/data/preprocessing/__init__.py).
 

@@ -176,14 +176,44 @@ You can use the following code snippet to run GaNDLF:
 ```
 ## Parallelize the Training
 
-### Multi-GPU training
+### Using single or multiple GPUs
+GaNDLF-Synth supports using single or multiple GPUs out of the box. By default, if the GPU is available (`CUDA_VISIBLE_DEVICES` is set), training and inference will use it. If multiple GPUs are available, GaNDLF-Synth will use all of them by DDP strategy (described below).
 
-GaNDLF enables relatively straightforward multi-GPU training. Simply set the `CUDA_VISIBLE_DEVICES` environment variable to the list of GPUs you want to use, and pass `cuda` as the device to the `gandlf run` command. For example, if you want to use GPUs 0, 1, and 2, you would set `CUDA_VISIBLE_DEVICES=0,1,2` [[ref](https://developer.nvidia.com/blog/cuda-pro-tip-control-gpu-visibility-cuda_visible_devices/)] and pass `-d cuda` to the `gandlf run` command.
+### Using Distributed Strategies
+We currently support [DDP](https://pytorch.org/tutorials/intermediate/ddp_tutorial.html) and [DeepSpeed](https://www.deepspeed.ai/getting-started/). 
+To use ddp, just configure the number of nodes and type strategy name "ddp" under "compute" field in the config.
 
-### Distributed training
+```yaml
+compute:
+  num_devices: 2         # if not set, all GPUs available will 
+  num_nodes: 2           # if not set, one node training is assumed
+  strategy: "ddp"
+  strategy_config: {}    # additional strategy specific kwargs, see https://lightning.ai/docs/pytorch/stable/api/lightning.pytorch.strategies.DDPStrategy.html#lightning.pytorch.strategies.DDPStrategy
 
-Distributed training is a more difficult problem to address, since there are multiple ways to configure a high-performance computing cluster (SLURM, OpenHPC, Kubernetes, and so on). Owing to this discrepancy, we have ensured that GaNDLF allows multiple training jobs to be submitted in relatively straightforward manner using the command line inference of each site’s configuration. Simply populate the `parallel_compute_command` in the [configuration](#customize-the-training) with the specific command to run before the training job, and GaNDLF will use this string to submit the training job. 
+```
 
+For deepspeed, we leverage the original `deepspeed` library config to set the distributed parameters. To use `deepspeed`, configure the `compute` field as follows:
+
+```yaml
+compute:
+  num_devices: 2         # if not set, all GPUs available will 
+  num_nodes: 2           # if not set, one node training is assumed
+  strategy: "deepspeed"
+  strategy_config: 
+    config: "path-to-deepspeed-config.json"    # path to the deepspeed config file
+```
+Details of this config file can be found in the deepspeed documentation here: https://www.deepspeed.ai/docs/config-json/
+Please read further details in the Lightning guide: https://lightning.ai/docs/pytorch/stable/advanced/model_parallel/deepspeed.html#custom-deepspeed-config.
+Note that you will probably need to override the optimizer choice with one of optimized ones available in `deepspeed`. This optimizer can be set in the `.json` config of the strategy (scheduler can be specified here too) and will take precedence over the one specified in the base `yaml` config file.
+
+### Mixed precision training:
+We currently support mixed precision training based on [lightning](https://pytorch-lightning.readthedocs.io/en/latest/advanced/mixed_precision.html). To use mixed precision, please set the "precision" field in the "compute" field. All available precision options can be found under the link above. 
+
+```yaml
+compute:
+  precision: "16"        
+```
+Some models (like VQVAE) may not support mixed precision training, so please check the model documentation before enabling it.
 
 ## Expected Output(s)
 

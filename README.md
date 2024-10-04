@@ -2,45 +2,44 @@
 
 Presenting the **G**ener**a**lly **N**uanced **D**eep **L**earning **F**ramework for **Synth**esis (GaNDLF-Synth), a unified abstraction to train various synthesis algorithms in a zero/low code approach.
 
+## Why use this?
+
+- Supports multiple
+  - Generative model architectures
+  - Data dimensions (2D/3D)
+  - Channels/images/sequences 
+  - Label conditioning schemes
+  - Domain modalities (i.e., Radiology Scans and Digitized Histopathology Tissue Sections)
+  - Problem types (synthesis, reconstruction)
+  - Multi-GPU and multi-node training
+- Built-in 
+  - Support for parallel HPC-based computing
+  - Support for training check-pointing
+  - Support for [Automatic mixed precision](./docs/usage.md#mixed-precision-training)
+- Robust data augmentation and preprocessing (via interfacing [GaNDLF](
+  https://docs.mlcommons.org/GaNDLF/))
+- Leverages robust open source software
+- No need to write any code to generate robust models
+
 ## Documentation
 
-General documentation is in preparation, it will be **made available soon**.
+GaNDLF has extensive documentation and it is arranged in the following manner:
 
-Mixed precision training:
-We currently support mixed precision training based on [lightning](https://pytorch-lightning.readthedocs.io/en/latest/advanced/mixed_precision.html). To use mixed precision, please set the "precision" field in the "compute" field. All available precision options can be found under the link above. 
+- [Home](https://mlcommons.github.io/GaNDLF-Synth/)
+- [Installation](./docs/setup.md)
+- [Usage](./docs/usage.md)
+- [Extension](./docs/extending.md)
+- [Frequently Asked Questions](./docs/FAQ.md)
+- [Acknowledgements](./docs/acknowledgements.md)
 
-```yaml
-compute:
-  precision: "16"        
-```
+## Contributing
 
-Usage of distributed strategies:
+Please see the [contributing guide](./CONTRIBUTING.md) for more information.
 
-- we currently support [DDP](https://pytorch.org/tutorials/intermediate/ddp_tutorial.html) and [DeepSpeed](https://www.deepspeed.ai/getting-started/). 
-- To use ddp, just configure the number of nodes and type strategy name "ddp" under "compute" field in the config. Note that this is going to be used as default strategy if not specified and multiple GPUs are available.
+## Disclaimer
+- The software has been designed for research purposes only and has neither been reviewed nor approved for clinical use by the Food and Drug Administration (FDA) or by any other federal/state agency.
+- This code (excluding dependent libraries) is governed by [the Apache License, Version 2.0](https://www.apache.org/licenses/LICENSE-2.0.txt) provided in the [LICENSE file](./LICENSE) unless otherwise specified.
 
-```yaml
-compute:
-  num_devices: 2         # if not set, all GPUs available will 
-  num_nodes: 2           # if not set, one node training is assumed
-  strategy: "ddp"
-  strategy_config: {}    # additional strategy specific kwargs, see https://lightning.ai/docs/pytorch/stable/api/lightning.pytorch.strategies.DDPStrategy.html#lightning.pytorch.strategies.DDPStrategy
-
-```
-
-- For deepspeed, we leverage the original deepspeed library config to set the distributed parameters. To use deepspeed, configure the "compute" field as follows:
-
-```yaml
-compute:
-  num_devices: 2         # if not set, all GPUs available will 
-  num_nodes: 2           # if not set, one node training is assumed
-  strategy: "deepspeed"
-  strategy_config: 
-    config: "path-to-deepspeed-config.json"    # path to the deepspeed config file
-```
-Details of this config file can be found in the deepspeed documentation here: https://www.deepspeed.ai/docs/config-json/
-Please read further details in the Lightning guide: https://lightning.ai/docs/pytorch/stable/advanced/model_parallel/deepspeed.html#custom-deepspeed-config.
-Note that you will probably need to override the optimizer choice with one of optimized ones available in deepspeed. This optimizer (scheduler can be specified here too) will take precedence over the one specified in the base yaml config file.
 
 ## Citation
 
