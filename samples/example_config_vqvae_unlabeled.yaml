@@ -1,3 +1,4 @@
+batch_size: 1
 data_augmentation: {}
 data_postprocessing: {}
 data_preprocessing:
@@ -17,7 +18,6 @@ data_preprocessing:
     resize:
     - 64
     - 64
-
 dataloader_config:
   inference:
     drop_last: false
@@ -39,35 +39,32 @@ dataloader_config:
     num_workers: 0
     pin_memory: false
     shuffle: false
-
-
+modality: rad
 model_config:
-  architecture:
-    num_eval_timesteps: 1
-    num_train_timesteps: 1
   converter_type: soft
   labeling_paradigm: unlabeled
   losses:
     name: mse
-  model_name: ddpm
+  model_name: vqvae
   n_channels: 2
   n_dimensions: 2
   norm_type: batch
   optimizers:
-      lr: 0.0001
+      betas:
+      - 0.5
+      - 0.999
+      lr: 0.0002
       name: adam
-  tensor_shape:
-  - 64
-  - 64
+      weight_decay: 0.0
   schedulers:
     type: triangle
     step_size: 2
-  
+  tensor_shape:
+  - 64
+  - 64
 inference_parameters:
   batch_size: 1
-  n_images_to_generate: 1
-modality: rad
 num_epochs: 1
-batch_size: 1
+patience: 0
 save_model_every_n_epochs: 1
 

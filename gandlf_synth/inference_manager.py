@@ -78,7 +78,7 @@ class CustomPredictionImageSaver(pl.callbacks.BasePredictionWriter):
 
 
 class InferenceManager:
-    LOGGER_NAME = "InferenceManager"
+    LOGGER_NAME = "inference_manager"
 
     """Class to manage the inference of the model on the input data."""
 
@@ -111,6 +111,7 @@ class InferenceManager:
         self.model_config = model_config
         self.model_dir = model_dir
         self.dataframe_reconstruction = dataframe_reconstruction
+        self.main_inference_dir = output_dir
         self.output_dir = self._prepare_output_directory(output_dir, model_dir)
         self.logger = prepare_logger(self.LOGGER_NAME, self.output_dir)
 
@@ -184,7 +185,7 @@ class InferenceManager:
         num_nodes = self.global_config["compute"].get("num_nodes", 1)
         precision = self.global_config["compute"].get("precision", 32)
         inference_logger = pl.loggers.CSVLogger(
-            self.output_dir, name="Inference_logs", flush_logs_every_n_steps=1
+            self.main_inference_dir, name="inference_logs", flush_logs_every_n_steps=1
         )
         prediction_saver_callback = CustomPredictionImageSaver(
             output_dir=self.output_dir,
