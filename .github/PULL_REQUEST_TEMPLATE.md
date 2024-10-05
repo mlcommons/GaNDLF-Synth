@@ -13,7 +13,7 @@ but PRs are more likely to be merged quickly if all the tasks are done. -->
 <!-- Replace `[ ]` with `[x]` in all the boxes that apply.
 Note that if a box is left unchecked, PR merges will take longer than usual.
 -->
-- [ ] **AS LONG AS THE REPO IS PRIVATE**, tests have been run (`pytest --cov=. --cov-report=xml`) and the result (`coverage report -m`) has been pasted here for reviewers.
+- [ ] Tests have been run (`pytest --cov=. --cov-report=xml`) and the result (`coverage report -m`) has been pasted here for reviewers.
 - [ ] [`CONTRIBUTING`](https://github.com/mlcommons/GaNDLF/blob/master/CONTRIBUTING.md) guide has been followed.
 - [ ] PR is based on the [current GaNDLF master ](https://docs.github.com/en/desktop/contributing-and-collaborating-using-github-desktop/keeping-your-local-repository-in-sync-with-github/syncing-your-branch-in-github-desktop?platform=windows).
 - [ ] Non-breaking change (does **not** break existing functionality): provide **as many** details as possible for _any_ breaking change.
