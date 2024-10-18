@@ -1,8 +1,15 @@
-site_name: GaNDLF
+site_name: GaNDLF-Synth
 repo_url: https://github.com/mlcommons/GaNDLF-Synth
-repo_name: mlcommons/gandlf-ynth
+repo_name: mlcommons/gandlf-synth
 nav:
   - Home: index.md
+  - Getting Started: getting_started.md
+  - Installation: setup.md
+  - Usage: usage.md
+  - Customize training and inference: customize.md
+  - Extending GaNDLF-Synth: extending.md
+  - FAQ: FAQ.md
+  - Acknowledgements: acknowledgements.md
 theme:
   features:
     - toc.integrate
