@@ -1,6 +1,6 @@
 # GaNDLF-Synth
 
-The **G**ener**a**lly **N**uanced **D**eep **L**earning **F**ramework - **synth**esis (GaNDLF-Synth) for reproducible and automated deep generative modeling in medical imaging.
+The **G**ener**a**lly **N**uanced **D**eep **L**earning **F**ramework - **Synth**esis (GaNDLF-Synth) for reproducible and automated deep generative modeling in medical imaging.
 
 ## Why use GaNDLF-Synth?
 
@@ -36,6 +36,7 @@ and **CSV inputs** that describe the training data.
 
 ## Citation
 Please cite the following article for GaNDLF-Synth:
+```bib
 @misc{pati2024gandlfsynthframeworkdemocratizegenerative,
       title={GaNDLF-Synth: A Framework to Democratize Generative AI for (Bio)Medical Imaging}, 
       author={Sarthak Pati and Szymon Mazurek and Spyridon Bakas},
@@ -45,6 +46,7 @@ Please cite the following article for GaNDLF-Synth:
       primaryClass={cs.LG},
       url={https://arxiv.org/abs/2410.00173}, 
 }
+```
 
 ## Contact
 GaNDLF developers can be reached via the following ways:

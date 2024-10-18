@@ -8,7 +8,7 @@ nav:
   - Usage: usage.md
   - Customize training and inference: customize.md
   - Extending GaNDLF-Synth: extending.md
-  - FAQ: FAQ.md
+  - FAQ: faq.md
   - Acknowledgements: acknowledgements.md
 theme:
   features:
