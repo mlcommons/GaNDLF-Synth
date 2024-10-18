@@ -174,7 +174,7 @@ You can use the following code snippet to run GaNDLF:
   # -rt , --reset # [optional] completely resets the previous run by deleting `model-dir`
   # -rm , --resume # [optional] resume previous training by only keeping model dict in `model-dir`
 ```
-## Parallelize the Training
+## Parallelize the Training and Inference
 
 ### Using single or multiple GPUs
 GaNDLF-Synth supports using single or multiple GPUs out of the box. By default, if the GPU is available (`CUDA_VISIBLE_DEVICES` is set), training and inference will use it. If multiple GPUs are available, GaNDLF-Synth will use all of them by DDP strategy (described below).

@@ -11,7 +11,7 @@ This file records the following pieces of information:
 
 |        **Application**       |   **Lead Author**   |                       **Link**                       |
 |:------------------------:|:---------------:|:------------------------------------------------:|
-|    arxiv here      | Sarthak Pati |  |
+| Framework introduction   | Sarthak Pati    |     [Arxiv](https://arxiv.org/abs/2410.00173)|
 
 
 
@@ -19,7 +19,5 @@ This file records the following pieces of information:
 
 - [All coders and developers of GaNDLF-Synth](https://github.com/mlcommons/GaNDLF-Synth/graphs/contributors)
 
-# TODO
 - Supervisors:
-
-    - [Spyridon Bakas](https://www.med.upenn.edu/cbica/sbakas/)
+    - [Spyridon Bakas](https://medicine.iu.edu/faculty/64865/bakas-spyridon)

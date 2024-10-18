@@ -121,6 +121,6 @@ data_postprocessing:
 ```
 
 ## Distributed Training
-For detalis on using distributed training, see the [usage page](./usage.md#distributed-training).
+For detalis on using distributed training, see the [usage page](./usage.md#parallelize-the-training-and-inference).
 
 
