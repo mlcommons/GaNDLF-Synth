@@ -311,7 +311,6 @@ class StyleGanDiscriminator(nn.Module):
     def __init__(
         self,
         conv_layer: nn.Module,
-        norm_layer: nn.Module,
         pool_layer: nn.Module,
         in_channels: int,
         img_channels: int,
@@ -322,7 +321,6 @@ class StyleGanDiscriminator(nn.Module):
 
         Args:
             conv_layer (nn.Module): Convolutional layer to be used.
-            norm_layer (nn.Module): Normalization layer to be used.
             pool_layer (nn.Module): Pooling layer to be used.
             in_channels (int): Number of input channels.
             img_channels (int): Number of output channels.
@@ -423,7 +421,6 @@ class StyleGan(ModelBase):
         )
         self.discriminator = StyleGanDiscriminator(
             self.Conv,
-            self.Norm,
             self.AvgPool,
             model_config.in_channels,
             self.n_channels,
