@@ -1,4 +1,6 @@
-# GaNDLF-Synth
+![GitHub-Mark-Light](https://github.com/mlcommons/GaNDLF-Syth/blob/main/docs/images/logo/full_white.png?raw=true#gh-light-mode-only)
+
+![GitHub-Mark-Dark](https://github.com/mlcommons/GaNDLF-Syth/blob/main/docs/images/logo/full_black.png?raw=true#gh-dark-mode-only)
 
 Presenting the **G**ener**a**lly **N**uanced **D**eep **L**earning **F**ramework for **Synth**esis (GaNDLF-Synth), a unified abstraction to train various synthesis algorithms in a zero/low code approach.
 
