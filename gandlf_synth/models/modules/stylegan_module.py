@@ -165,6 +165,15 @@ class UnlabeledStyleGANModule(SynthesisModule):
 
         return gradient_penalty
 
+    def _generate_latent_vector(self, batch_size: int) -> torch.Tensor:
+        latent_vector = torch.randn(
+            (batch_size, self.model_config.architecture["latent_vector_size"]),
+            device=self.device,
+        )
+        if self.model_config.n_dimensions == 3:
+            latent_vector = latent_vector.unsqueeze(1)
+        return latent_vector
+
     def training_step(self, batch: object, batch_idx: int) -> torch.Tensor:
         real_images: torch.Tensor = batch
         real_images = self._resize_to_current_step_demands(real_images)
@@ -173,19 +182,9 @@ class UnlabeledStyleGANModule(SynthesisModule):
         gradient_clip_algorithm = self.model_config.gradient_clip_algorithm
 
         batch_size = real_images.shape[0]
-        latent_vector = (
-            generate_latent_vector(
-                batch_size,
-                self.model_config.architecture["latent_vector_size"],
-                self.model_config.n_dimensions,
-                self.device,
-            )
-            .type_as(real_images)
-            .squeeze(2, 3)
-        )
+        latent_vector = self._generate_latent_vector(batch_size)
         loss_disc, loss_gen = self.losses["disc_loss"], self.losses["gen_loss"]
         optimizer_disc, optimizer_gen = self.optimizers()
-
         fake_images = self.model(latent_vector, self.alpha, self.current_step)
         disc_preds_on_real = self.model.discriminator(
             real_images, self.alpha, self.current_step
