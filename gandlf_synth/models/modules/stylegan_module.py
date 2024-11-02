@@ -33,6 +33,10 @@ class UnlabeledStyleGANModule(SynthesisModule):
         self.current_step = 0
         self.current_resize_transform = self._get_current_resize_transform()
 
+        assert self.trainer.max_epochs == sum(
+            self.progressive_epochs
+        ), "The sum of progressive epochs must be equal to the total number of epochs!"
+
     def _determine_current_image_size(self) -> int:
         return 4 * 2**self.current_step
 
@@ -256,7 +260,7 @@ class UnlabeledStyleGANModule(SynthesisModule):
             self.current_resize_transform = self._get_current_resize_transform()
 
     def _generate_image_set_from_fixed_vector(
-        self, n_images_to_generate
+        self, n_images_to_generate: int
     ) -> torch.Tensor:
         fixed_latent_vector = get_fixed_latent_vector(
             n_images_to_generate,
@@ -265,7 +269,10 @@ class UnlabeledStyleGANModule(SynthesisModule):
             self.device,
             self.model_config.fixed_latent_vector_seed,
         )
-        fake_images = self.model.generator(fixed_latent_vector)
+        temp_alpha = 1.0
+        fake_images = self.model.generator(
+            fixed_latent_vector, temp_alpha, self.current_step
+        )
         return fake_images
 
     def on_train_epoch_end(self) -> None:
