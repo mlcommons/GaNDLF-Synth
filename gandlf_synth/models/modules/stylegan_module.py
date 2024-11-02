@@ -3,6 +3,7 @@ import os
 import torch
 from torch import nn, optim
 from torchvision.utils import save_image
+from warnings import warn
 
 from gandlf_synth.models.architectures.base_model import ModelBase
 from gandlf_synth.models.architectures.stylegan import StyleGan
@@ -13,10 +14,6 @@ from gandlf_synth.optimizers import get_optimizer
 from gandlf_synth.losses import get_loss
 from gandlf_synth.schedulers import get_scheduler
 
-from gandlf_synth.utils.generators import (
-    generate_latent_vector,
-    get_fixed_latent_vector,
-)
 
 from typing import Dict, Union, List, Optional
 
@@ -32,39 +29,6 @@ class UnlabeledStyleGANModule(SynthesisModule):
         self.current_epoch_in_progressive_epoch = 0
         self.current_step = 0
         self.current_resize_transform = self._determine_current_resize_transform()
-
-    def _determine_current_width_height(self) -> int:
-        required_width_height_size = 4 * 2**self.current_step
-        return required_width_height_size
-
-    def _determine_resampling_values(self) -> List[int]:
-        required_width_height_size = self._determine_current_width_height()
-        original_size = self.model_config.tensor_shape[1]
-        # for now, the Z-dimension is not resampled
-        last_size = (
-            self.model_config.tensor_shape[-1]
-            if self.model_config.n_dimensions == 3
-            else 1
-        )
-        resampling_value = original_size // required_width_height_size
-        return [resampling_value, resampling_value, last_size]
-
-    def _determine_current_resize_transform(self) -> Resample:
-        return Resample(self._determine_resampling_values())
-
-    def _resize_to_current_step_demands(self, images: torch.Tensor) -> torch.Tensor:
-        images = images.cpu()
-        if self.model_config.n_dimensions == 2:
-            return torch.stack(
-                [
-                    self.current_resize_transform(image.unsqueeze(-1)).squeeze(-1)
-                    for image in images
-                ]
-            ).to(self.device)
-        elif self.model_config.n_dimensions == 3:
-            return torch.stack(
-                [self.current_resize_transform(image) for image in images]
-            ).to(self.device)
 
     def _initialize_model(self) -> ModelBase:
         return StyleGan(self.model_config)
@@ -121,71 +85,24 @@ class UnlabeledStyleGANModule(SynthesisModule):
 
         return [disc_optimizer, gen_optimizer]
 
-    def _gradient_penalty(
-        self, real_images: torch.Tensor, fake_images: torch.Tensor
-    ) -> torch.Tensor:
-        """
-        Calculate gradient penalty for Stylegan that works with both 2D and 3D images.
-
-        Args:
-            real: Real images tensor of shape (BATCH_SIZE, C, H, W) or (BATCH_SIZE, C, H, W, D)
-            fake: Generated images tensor of same shape as real
-
-        Returns:
-            gradient_penalty: Scalar tensor with the gradient penalty
-        """
-        batch_size = real_images.shape[0]
-        channels = real_images.shape[1]
-        spatial_dims = real_images.shape[2:]
-
-        beta_shape = (batch_size,) + (1,) * (len(real_images.shape) - 1)
-        beta = torch.rand(beta_shape, device=self.device)
-
-        repeat_pattern = [1, channels] + [dim for dim in spatial_dims]
-        beta = beta.repeat(*repeat_pattern)
-
-        interpolated_images = real_images * beta + fake_images.detach() * (1 - beta)
-        interpolated_images.requires_grad_(True)
-
-        mixed_scores = self.model.discriminator(
-            interpolated_images, self.alpha, self.current_step
-        )
-
-        gradient = torch.autograd.grad(
-            inputs=interpolated_images,
-            outputs=mixed_scores,
-            grad_outputs=torch.ones_like(mixed_scores),
-            create_graph=True,
-            retain_graph=True,
-        )[0]
-
-        gradient = gradient.view(gradient.shape[0], -1)
-        gradient_norm = gradient.norm(2, dim=1)
-        gradient_penalty = torch.mean((gradient_norm - 1) ** 2)
-
-        return gradient_penalty
-
-    def _generate_latent_vector(self, batch_size: int) -> torch.Tensor:
-        latent_vector = torch.randn(
-            (batch_size, self.model_config.architecture["latent_vector_size"]),
-            device=self.device,
-        )
-        if self.model_config.n_dimensions == 3:
-            latent_vector = latent_vector.unsqueeze(1)
-        return latent_vector
-
     def training_step(self, batch: object, batch_idx: int) -> torch.Tensor:
         real_images: torch.Tensor = batch
+        batch_size = real_images.shape[0]
+        if batch_size == 1:
+            warn(
+                f"Batch number {batch_idx} has only one sample. Skipping the batch as it will cause NaN values in the model's output."
+            )
+            return None
         real_images = self._resize_to_current_step_demands(real_images)
         gardient_accumulation_steps = self.model_config.accumulate_grad_batches
         gradient_clip_val = self.model_config.gradient_clip_val
         gradient_clip_algorithm = self.model_config.gradient_clip_algorithm
 
-        batch_size = real_images.shape[0]
         latent_vector = self._generate_latent_vector(batch_size)
         loss_disc, loss_gen = self.losses["disc_loss"], self.losses["gen_loss"]
         optimizer_disc, optimizer_gen = self.optimizers()
         fake_images = self.model(latent_vector, self.alpha, self.current_step)
+
         disc_preds_on_real = self.model.discriminator(
             real_images, self.alpha, self.current_step
         )
@@ -193,7 +110,7 @@ class UnlabeledStyleGANModule(SynthesisModule):
             fake_images.detach(), self.alpha, self.current_step
         )
         self.toggle_optimizer(optimizer_disc)
-        gradient_penalty = self._gradient_penalty(real_images, fake_images)
+        gradient_penalty = self._compute_gradient_penalty(real_images, fake_images)
         disc_loss = (
             -(loss_disc(disc_preds_on_real) - loss_disc(disc_preds_on_fake))
             + self.model_config.architecture["gradient_penalty_weight"]
@@ -210,10 +127,10 @@ class UnlabeledStyleGANModule(SynthesisModule):
         self.untoggle_optimizer(optimizer_disc)
 
         self.toggle_optimizer(optimizer_gen)
-
         disc_preds_on_fake_gen = self.model.discriminator(
             fake_images, self.alpha, self.current_step
         )
+
         gen_loss = -loss_gen(disc_preds_on_fake_gen)
         self.manual_backward(gen_loss)
         self.clip_gradients(optimizer_gen, gradient_clip_val, gradient_clip_algorithm)
@@ -248,12 +165,7 @@ class UnlabeledStyleGANModule(SynthesisModule):
 
     def predict_step(self, batch, batch_dx) -> torch.Tensor:
         n_images_to_generate = len(batch)
-        latent_vector = generate_latent_vector(
-            n_images_to_generate,
-            self.model_config.architecture["latent_vector_size"],
-            self.model_config.n_dimensions,
-            self.device,
-        ).squeeze(2, 3)
+        latent_vector = self._generate_latent_vector(n_images_to_generate)
         fake_images = self.forward(latent_vector)
         if self.postprocessing_transforms is not None:
             for transform in self.postprocessing_transforms:
@@ -288,34 +200,6 @@ class UnlabeledStyleGANModule(SynthesisModule):
                     "The current_step argument must be provided if the `default_forward_step` attribute is not set in model config!"
                 )
         fake_images = self.model.generator(latent_vector, alpha, current_step)
-        return fake_images
-
-    def _update_current_step(self) -> None:
-        """
-        Check if the given progressive step is finished. If so, update the current step
-        and the current resize transform.
-        """
-        self.current_epoch_in_progressive_epoch += 1
-        current_progressive_epochs = self.progressive_epochs[self.current_step]
-        if self.current_epoch_in_progressive_epoch >= current_progressive_epochs:
-            self.current_epoch_in_progressive_epoch = 0
-            self.current_step += 1
-            self.current_resize_transform = self._determine_current_resize_transform()
-
-    def _generate_image_set_from_fixed_vector(
-        self, n_images_to_generate: int
-    ) -> torch.Tensor:
-        fixed_latent_vector = get_fixed_latent_vector(
-            n_images_to_generate,
-            self.model_config.architecture["latent_vector_size"],
-            self.model_config.n_dimensions,
-            self.device,
-            self.model_config.fixed_latent_vector_seed,
-        ).squeeze(2, 3)
-        temp_alpha = 1.0
-        fake_images = self.model.generator(
-            fixed_latent_vector, temp_alpha, self.current_step
-        )
         return fake_images
 
     def on_train_epoch_end(self) -> None:
@@ -361,3 +245,111 @@ class UnlabeledStyleGANModule(SynthesisModule):
                         normalize=True,
                     )
         self._update_current_step()
+
+    def _generate_latent_vector(self, batch_size: int) -> torch.Tensor:
+        latent_vector = torch.randn(
+            (batch_size, self.model_config.architecture["latent_vector_size"]),
+            device=self.device,
+        )
+        if self.model_config.n_dimensions == 3:
+            latent_vector = latent_vector.unsqueeze(1)
+        return latent_vector
+
+    def _generate_fixed_latent_vector(self, batch_size: int) -> torch.Tensor:
+        current_rng_state = torch.get_rng_state()
+        latent_vector = self._generate_latent_vector(batch_size)
+        torch.set_rng_state(current_rng_state)
+        return latent_vector
+
+    def _generate_image_set_from_fixed_vector(
+        self, n_images_to_generate: int
+    ) -> torch.Tensor:
+        fixed_latent_vector = self._generate_fixed_latent_vector(n_images_to_generate)
+        temp_alpha = 1.0
+        fake_images = self.model.generator(
+            fixed_latent_vector, temp_alpha, self.current_step
+        )
+        return fake_images
+
+    def _compute_gradient_penalty(
+        self, real_images: torch.Tensor, fake_images: torch.Tensor
+    ) -> torch.Tensor:
+        """
+        Calculate gradient penalty for Stylegan that works with both 2D and 3D images.
+
+        Args:
+            real: Real images tensor of shape (BATCH_SIZE, C, H, W) or (BATCH_SIZE, C, H, W, D)
+            fake: Generated images tensor of same shape as real
+
+        Returns:
+            gradient_penalty: Scalar tensor with the gradient penalty
+        """
+        batch_size = real_images.shape[0]
+        channels = real_images.shape[1]
+        spatial_dims = real_images.shape[2:]
+
+        beta_shape = (batch_size,) + (1,) * (len(real_images.shape) - 1)
+        beta = torch.rand(beta_shape, device=self.device)
+
+        repeat_pattern = [1, channels] + [dim for dim in spatial_dims]
+        beta = beta.repeat(*repeat_pattern)
+
+        interpolated_images = real_images * beta + fake_images.detach() * (1 - beta)
+        interpolated_images.requires_grad_(True)
+
+        mixed_scores = self.model.discriminator(
+            interpolated_images, self.alpha, self.current_step
+        )
+
+        gradient = torch.autograd.grad(
+            inputs=interpolated_images,
+            outputs=mixed_scores,
+            grad_outputs=torch.ones_like(mixed_scores),
+            create_graph=True,
+            retain_graph=True,
+        )[0]
+
+        gradient = gradient.view(gradient.shape[0], -1)
+        gradient_norm = gradient.norm(2, dim=1)
+        gradient_penalty = torch.mean((gradient_norm - 1) ** 2)
+
+        return gradient_penalty
+
+    def _update_current_step(self) -> None:
+        """
+        Check if the given progressive step is finished. If so, update the current step
+        and the current resize transform.
+        """
+        self.current_epoch_in_progressive_epoch += 1
+        current_progressive_epochs = self.progressive_epochs[self.current_step]
+        if self.current_epoch_in_progressive_epoch >= current_progressive_epochs:
+            self.current_epoch_in_progressive_epoch = 0
+            self.current_step += 1
+            self.current_resize_transform = self._determine_current_resize_transform()
+
+    def _resize_to_current_step_demands(self, images: torch.Tensor) -> torch.Tensor:
+        images = images.cpu()
+        if self.model_config.n_dimensions == 2:
+            return torch.stack(
+                [
+                    self.current_resize_transform(image.unsqueeze(-1)).squeeze(-1)
+                    for image in images
+                ]
+            ).to(self.device)
+        elif self.model_config.n_dimensions == 3:
+            return torch.stack(
+                [self.current_resize_transform(image) for image in images]
+            ).to(self.device)
+
+    def _determine_current_resize_transform(self) -> Resample:
+        return Resample(self._determine_resampling_values())
+
+    def _determine_resampling_values(self) -> List[int]:
+        required_width_height_size = self._determine_current_width_height()
+        original_size = self.model_config.tensor_shape[1]
+        resampling_value = original_size // required_width_height_size
+        return [resampling_value, resampling_value, resampling_value]
+
+    def _determine_current_width_height(self) -> int:
+        required_width_height_size = 4 * 2**self.current_step
+        return required_width_height_size

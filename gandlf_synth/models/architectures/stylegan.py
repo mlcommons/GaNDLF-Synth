@@ -264,6 +264,8 @@ class StyleGanGenerator(nn.Module):
         channels in consecutive convolutional layers.
         """
         super().__init__()
+        self.n_dimensions = n_dimensions
+
         cte_shape = (
             (1, in_channels, 4, 4) if n_dimensions == 2 else (1, in_channels, 4, 4, 4)
         )
@@ -323,21 +325,19 @@ class StyleGanGenerator(nn.Module):
         return torch.tanh(alpha * generated + (1 - alpha) * upscaled)
 
     def forward(self, noise: torch.Tensor, alpha: float, steps: int) -> torch.Tensor:
-        print(f"noise.shape: {noise.shape}")
         w = self.map(noise)
-        print(f"w.shape: {w.shape}")
         x = self.initial_adain1(self.initial_noise1(self.starting_cte), w)
-        print(f"x.shape: {x.shape}")
         x = self.initial_conv(x)
-        print(f"x.shape.initial_conv: {x.shape}")
         out = self.initial_adain2(self.leaky(self.initial_noise2(x)), w)
-        print(f"out.shape: {out.shape}")
         if steps == 0:
-            print(f"steps == 0")
             return self.initial_rgb(x)
 
         for step in range(steps):
-            upscaled = F.interpolate(out, scale_factor=2, mode="bilinear")
+            upscaled = F.interpolate(
+                out,
+                scale_factor=2,
+                mode="bilinear" if self.n_dimensions == 2 else "trilinear",
+            )
             out = self.prog_blocks[step](upscaled, w)
 
         final_upscaled = self.rgb_layers[steps - 1](upscaled)
@@ -433,7 +433,6 @@ class StyleGanDiscriminator(nn.Module):
     def forward(self, x: torch.Tensor, alpha: float, steps: int) -> torch.Tensor:
         cur_step = len(self.prog_blocks) - steps
         out = self.leaky(self.rgb_layers[cur_step](x))
-
         if steps == 0:
             out = self.calculate_minibatch_std(out)
             return self.final_block(out).view(out.shape[0], -1)

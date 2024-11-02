@@ -1,9 +1,9 @@
 import os
 import inspect
 import logging
-from pathlib import Path
 import pytest
 import pandas as pd
+from pathlib import Path
 from gandlf_synth.config_manager import ConfigManager
 from gandlf_synth.training_manager import TrainingManager
 from gandlf_synth.inference_manager import InferenceManager
@@ -90,18 +90,18 @@ def run_test(config_path, modality, n_dimensions, labeling_type, is_histo=False)
 @pytest.mark.parametrize(
     "config_name, modality, n_dimensions, is_histo",
     [
-        # ("dcgan", "2d_rad", 2, False),
-        # ("dcgan", "3d_rad", 3, False),
-        # ("dcgan", "2d_histo", 2, True),
-        # ("vqvae", "2d_rad", 2, False),
-        # ("vqvae", "3d_rad", 3, False),
-        # ("vqvae", "2d_histo", 2, True),
-        # ("ddpm", "2d_rad", 2, False),
-        # ("ddpm", "3d_rad", 3, False),
-        # ("ddpm", "2d_histo", 2, True),
-        # ("stylegan", "2d_rad", 2, False),
+        ("dcgan", "2d_rad", 2, False),
+        ("dcgan", "3d_rad", 3, False),
+        ("dcgan", "2d_histo", 2, True),
+        ("vqvae", "2d_rad", 2, False),
+        ("vqvae", "3d_rad", 3, False),
+        ("vqvae", "2d_histo", 2, True),
+        ("ddpm", "2d_rad", 2, False),
+        ("ddpm", "3d_rad", 3, False),
+        ("ddpm", "2d_histo", 2, True),
+        ("stylegan", "2d_rad", 2, False),
         ("stylegan", "3d_rad", 3, False),
-        # ("stylegan", "2d_histo", 2, True)
+        ("stylegan", "2d_histo", 2, True),
     ],
 )
 def test_module(config_name, modality, n_dimensions, is_histo):

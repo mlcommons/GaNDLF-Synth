@@ -97,12 +97,14 @@ model_config:
   n_fixed_images_to_generate: 10
   fixed_images_batch_size: 10
   default_forward_step: 4 # Value not higher than length of progressive_epochs - 1
+  grandient_clip_val: 0.5
+  gradient_clip_algorithm: value
 
 
 inference_parameters:
-  batch_size: 1
+  batch_size: 2
   n_images_to_generate: 10
 modality: rad
-batch_size: 1
+batch_size: 2
 num_epochs: 5
 save_model_every_n_epochs: 1
