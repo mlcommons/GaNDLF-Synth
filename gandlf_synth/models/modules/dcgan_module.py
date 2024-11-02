@@ -128,11 +128,12 @@ class UnlabeledDCGANModule(SynthesisModule):
 
     def forward(self, latent_vector) -> torch.Tensor:
         """
-        Forward pass of the unlabeled DCGAN module. This method is considered
-        a call to a generator to produce given number of images.
-
+        Forward pass of the unlabeled DCGAN module.
         Args:
-            n_images_to_generate (int): Number of images to generate.
+            latent_vector (torch.Tensor): The latent vector to generate the images from.
+
+        Returns:
+            torch.Tensor: The generated fake images.
         """
 
         fake_images = self.model.generator(latent_vector)

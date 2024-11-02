@@ -271,7 +271,12 @@ class StyleGanGenerator(nn.Module):
             )
             self.rgb_layers.append(
                 WeightScaledConv(
-                    conv_out_c, img_channels, kernel_size=1, stride=1, padding=0
+                    conv_layer,
+                    conv_out_c,
+                    img_channels,
+                    kernel_size=1,
+                    stride=1,
+                    padding=0,
                 )
             )
 
@@ -413,18 +418,19 @@ class StyleGan(ModelBase):
         ModelBase.__init__(self, model_config)
         self.generator = StyleGanGenerator(
             self.Conv,
-            self.Norm,
-            model_config.z_dim,
-            model_config.w_dim,
-            model_config.in_channels,
-            model_config.progressive_layers_scaling_factors,
+            self.InstanceNorm,
+            model_config.architecture["latent_vector_size"],
+            model_config.architecture["intermediate_latent_size"],
+            model_config.architecture["first_conv_channels"],
+            self.n_channels,
+            model_config.architecture["progressive_layers_scaling_factors"],
         )
         self.discriminator = StyleGanDiscriminator(
             self.Conv,
             self.AvgPool,
-            model_config.in_channels,
+            model_config.architecture["first_conv_channels"],
             self.n_channels,
-            model_config.progressive_layers_scaling_factors,
+            model_config.architecture["progressive_layers_scaling_factors"],
         )
 
     def generator_forward(self, noise: torch.Tensor, alpha: float, steps: int):

@@ -21,6 +21,10 @@ class UnlabeledStyleGANConfig(AbstractModelConfig):
         ) == len(
             model_config["architecture"]["progressive_epochs"]
         ), "Number of elements in `progressive_layers_scaling_factors` must be equal to number of elements in `progressive_epochs`."
+        assert (
+            model_config["default_forward_step"]
+            <= len(model_config["architecture"]["progressive_epochs"]) - 1
+        ), "Default forward step must be less than or equal to the number of progressive epochs - 1."
 
     @staticmethod
     def _prepare_default_model_params() -> dict:
@@ -29,6 +33,7 @@ class UnlabeledStyleGANConfig(AbstractModelConfig):
             "n_fixed_images_batch_size": 1,  # Batch size of images to gernerate at the end of each training epochs
             "n_fixed_images_to_generate": 8,  # How many images to generate at the end of each training epochs
             "save_eval_images_every_n_epochs": -1,  # Save evaluation images every n epochs, < 0 means never
+            "default_forward_step": 1,  # Default step to use for forward pass
         }
 
     @staticmethod

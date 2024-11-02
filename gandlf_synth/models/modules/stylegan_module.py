@@ -8,7 +8,7 @@ from gandlf_synth.models.architectures.base_model import ModelBase
 from gandlf_synth.models.architectures.stylegan import StyleGan
 from gandlf_synth.models.modules.module_abc import SynthesisModule
 from gandlf_synth.models.modules.module_abc import SynthesisModule
-from torchvision.transforms import Resize
+from torchio.transforms import Resample
 from gandlf_synth.optimizers import get_optimizer
 from gandlf_synth.losses import get_loss
 from gandlf_synth.schedulers import get_scheduler
@@ -18,7 +18,7 @@ from gandlf_synth.utils.generators import (
     get_fixed_latent_vector,
 )
 
-from typing import Dict, Union, List
+from typing import Dict, Union, List, Optional
 
 
 class UnlabeledStyleGANModule(SynthesisModule):
@@ -27,22 +27,44 @@ class UnlabeledStyleGANModule(SynthesisModule):
         self.model: StyleGan
         self.automatic_optimization = False
         self.train_loss_list: List[Dict[float]] = []
-        self.alpha = self.model_config.alpha
-        self.progressive_epochs = self.model_config.progressive_epochs
+        self.alpha = self.model_config.architecture["alpha"]
+        self.progressive_epochs = self.model_config.architecture["progressive_epochs"]
         self.current_epoch_in_progressive_epoch = 0
         self.current_step = 0
-        self.current_resize_transform = self._get_current_resize_transform()
+        self.current_resize_transform = self._determine_current_resize_transform()
 
-        assert self.trainer.max_epochs == sum(
-            self.progressive_epochs
-        ), "The sum of progressive epochs must be equal to the total number of epochs!"
+    def _determine_current_width_height(self) -> int:
+        required_width_height_size = 4 * 2**self.current_step
+        return required_width_height_size
 
-    def _determine_current_image_size(self) -> int:
-        return 4 * 2**self.current_step
+    def _determine_resampling_values(self) -> List[int]:
+        required_width_height_size = self._determine_current_width_height()
+        original_size = self.model_config.tensor_shape[1]
+        # for now, the Z-dimension is not resampled
+        last_size = (
+            self.model_config.tensor_shape[-1]
+            if self.model_config.n_dimensions == 3
+            else 1
+        )
+        resampling_value = original_size // required_width_height_size
+        return [resampling_value, resampling_value, last_size]
 
-    def _get_current_resize_transform(self) -> Resize:
-        current_image_size = self._determine_current_image_size()
-        return Resize(current_image_size)
+    def _determine_current_resize_transform(self) -> Resample:
+        return Resample(self._determine_resampling_values())
+
+    def _resize_to_current_step_demands(self, images: torch.Tensor) -> torch.Tensor:
+        images = images.cpu()
+        if self.model_config.n_dimensions == 2:
+            return torch.stack(
+                [
+                    self.current_resize_transform(image.unsqueeze(-1)).squeeze(-1)
+                    for image in images
+                ]
+            ).to(self.device)
+        elif self.model_config.n_dimensions == 3:
+            return torch.stack(
+                [self.current_resize_transform(image) for image in images]
+            ).to(self.device)
 
     def _initialize_model(self) -> ModelBase:
         return StyleGan(self.model_config)
@@ -145,18 +167,22 @@ class UnlabeledStyleGANModule(SynthesisModule):
 
     def training_step(self, batch: object, batch_idx: int) -> torch.Tensor:
         real_images: torch.Tensor = batch
-
+        real_images = self._resize_to_current_step_demands(real_images)
         gardient_accumulation_steps = self.model_config.accumulate_grad_batches
         gradient_clip_val = self.model_config.gradient_clip_val
         gradient_clip_algorithm = self.model_config.gradient_clip_algorithm
 
         batch_size = real_images.shape[0]
-        latent_vector = generate_latent_vector(
-            batch_size,
-            self.model_config.architecture["latent_vector_size"],
-            self.model_config.n_dimensions,
-            self.device,
-        ).type_as(real_images)
+        latent_vector = (
+            generate_latent_vector(
+                batch_size,
+                self.model_config.architecture["latent_vector_size"],
+                self.model_config.n_dimensions,
+                self.device,
+            )
+            .type_as(real_images)
+            .squeeze(2, 3)
+        )
         loss_disc, loss_gen = self.losses["disc_loss"], self.losses["gen_loss"]
         optimizer_disc, optimizer_gen = self.optimizers()
 
@@ -171,8 +197,10 @@ class UnlabeledStyleGANModule(SynthesisModule):
         gradient_penalty = self._gradient_penalty(real_images, fake_images)
         disc_loss = (
             -(loss_disc(disc_preds_on_real) - loss_disc(disc_preds_on_fake))
-            + self.model_config.gradient_penalty_weight * gradient_penalty
-            + self.model_config.critic_epsilon * torch.mean(disc_preds_on_real**2)
+            + self.model_config.architecture["gradient_penalty_weight"]
+            * gradient_penalty
+            + self.model_config.architecture["critic_squared_loss_weight"]
+            * torch.mean(disc_preds_on_real**2)
         )
         self.manual_backward(disc_loss)
         self.clip_gradients(optimizer_disc, gradient_clip_val, gradient_clip_algorithm)
@@ -197,7 +225,7 @@ class UnlabeledStyleGANModule(SynthesisModule):
         self.untoggle_optimizer(optimizer_gen)
         self.alpha += batch_size / (
             self.progressive_epochs[self.current_step]
-            * len(self.train_dataloader().dataset)
+            * len(self.trainer.train_dataloader.dataset)
         )
         self.alpha = min(self.alpha, 1.0)
 
@@ -226,8 +254,8 @@ class UnlabeledStyleGANModule(SynthesisModule):
             self.model_config.architecture["latent_vector_size"],
             self.model_config.n_dimensions,
             self.device,
-        )
-        fake_images = self.model.generator(latent_vector)
+        ).squeeze(2, 3)
+        fake_images = self.forward(latent_vector)
         if self.postprocessing_transforms is not None:
             for transform in self.postprocessing_transforms:
                 fake_images = transform(fake_images)
@@ -235,16 +263,32 @@ class UnlabeledStyleGANModule(SynthesisModule):
 
         return fake_images
 
-    def forward(self, latent_vector) -> torch.Tensor:
+    def forward(
+        self,
+        latent_vector: torch.Tensor,
+        alpha: float = 1.0,
+        current_step: Optional[int] = None,
+    ) -> torch.Tensor:
         """
-        Forward pass of the unlabeled DCGAN module. This method is considered
-        a call to a generator to produce given number of images.
+        Forward pass of the unlabeled StyleGAN module. The
+        params of generation can be passed as arguments. If absent, they
+        will be taken from the module's special attributes.
 
         Args:
-            n_images_to_generate (int): Number of images to generate.
+            latent_vector (torch.Tensor): The latent vector to generate images from.
+            alpha (float): The alpha value for the progressive growing.
+            current_step (int): The current progressive step. If None, the default
+                step will be taken from the model config. Useful for inference, where this
+                can allow to choose the step (therefore the image size) to generate.
         """
-
-        fake_images = self.model.generator(latent_vector)
+        if current_step is None:
+            try:
+                current_step = self.model_config.default_forward_step
+            except AttributeError:
+                raise ValueError(
+                    "The current_step argument must be provided if the `default_forward_step` attribute is not set in model config!"
+                )
+        fake_images = self.model.generator(latent_vector, alpha, current_step)
         return fake_images
 
     def _update_current_step(self) -> None:
@@ -257,7 +301,7 @@ class UnlabeledStyleGANModule(SynthesisModule):
         if self.current_epoch_in_progressive_epoch >= current_progressive_epochs:
             self.current_epoch_in_progressive_epoch = 0
             self.current_step += 1
-            self.current_resize_transform = self._get_current_resize_transform()
+            self.current_resize_transform = self._determine_current_resize_transform()
 
     def _generate_image_set_from_fixed_vector(
         self, n_images_to_generate: int
@@ -268,7 +312,7 @@ class UnlabeledStyleGANModule(SynthesisModule):
             self.model_config.n_dimensions,
             self.device,
             self.model_config.fixed_latent_vector_seed,
-        )
+        ).squeeze(2, 3)
         temp_alpha = 1.0
         fake_images = self.model.generator(
             fixed_latent_vector, temp_alpha, self.current_step
@@ -277,7 +321,6 @@ class UnlabeledStyleGANModule(SynthesisModule):
 
     def on_train_epoch_end(self) -> None:
         self._epoch_log(self.train_loss_list)
-        self._update_current_step()
 
         process_rank = self.global_rank
         eval_save_interval = self.model_config.save_eval_images_every_n_epochs
@@ -318,3 +361,4 @@ class UnlabeledStyleGANModule(SynthesisModule):
                         ),
                         normalize=True,
                     )
+        self._update_current_step()

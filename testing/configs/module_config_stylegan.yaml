@@ -1,0 +1,108 @@
+data_augmentation: {}
+data_postprocessing: {}
+data_preprocessing:
+  test:
+    resize:
+    - 64
+    - 64
+  train:
+    resize:
+    - 64
+    - 64
+  val:
+    resize:
+    - 64
+    - 64
+  inference:
+    resize:
+    - 64
+    - 64
+
+dataloader_config:
+  inference:
+    drop_last: false
+    num_workers: 0
+    pin_memory: false
+    shuffle: false
+  test:
+    drop_last: false
+    num_workers: 0
+    pin_memory: false
+    shuffle: false
+  train:
+    drop_last: false
+    num_workers: 0
+    pin_memory: false
+    shuffle: true
+  validation:
+    drop_last: false
+    num_workers: 0
+    pin_memory: false
+    shuffle: false
+
+model_config:
+  model_name: stylegan
+  architecture:
+    latent_vector_size: 512
+    progressive_layers_scaling_factors: 
+      - 1
+      - 1
+      - 1
+      - 0.5
+      - 0.25
+    progressive_epochs: 
+      - 1
+      - 1
+      - 1
+      - 1
+      - 1
+
+  converter_type: soft
+  labeling_paradigm: unlabeled
+  losses:
+    discriminator:
+      name: plain_mean
+    generator:
+      name: plain_mean
+  n_channels: 2
+  n_dimensions: 2
+  norm_type: batch
+  optimizers:
+    discriminator:
+      betas:
+      - 0
+      - 0.99
+      lr: 0.001
+      name: adam
+      weight_decay: 0.0
+    generator:
+      betas:
+      - 0
+      - 0.99
+      lr: 0.001
+      name: adam
+      weight_decay: 0.0
+
+  schedulers:
+    discriminator:
+      type: triangle_modified
+      step_size: 2
+    generator:
+      type: triangle_modified
+      step_size: 2
+  tensor_shape:
+  - 64
+  - 64
+  save_eval_images_every_n_epochs: 1
+  n_fixed_images_to_generate: 10
+  fixed_images_batch_size: 10
+  default_forward_step: 4 # Value not higher than length of progressive_epochs - 1
+
+
+inference_parameters:
+  batch_size: 1
+  n_images_to_generate: 10
+modality: rad
+batch_size: 1
+num_epochs: 5
+save_model_every_n_epochs: 1
