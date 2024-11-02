@@ -100,8 +100,8 @@ def run_test(config_path, modality, n_dimensions, labeling_type, is_histo=False)
         # ("ddpm", "3d_rad", 3, False),
         # ("ddpm", "2d_histo", 2, True),
         # ("stylegan", "2d_rad", 2, False),
-        # ("stylegan", "3d_rad", 3, False),
-        ("stylegan", "2d_histo", 2, True)
+        ("stylegan", "3d_rad", 3, False),
+        # ("stylegan", "2d_histo", 2, True)
     ],
 )
 def test_module(config_name, modality, n_dimensions, is_histo):

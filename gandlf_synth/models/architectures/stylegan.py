@@ -27,6 +27,7 @@ class WeightScaledLinear(nn.Module):
         nn.init.zeros_(self.bias)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
+        print(f"WeightScaledLinear: x.shape={x.shape}")
         return self.linear(x * self.scale) + self.bias
 
 
