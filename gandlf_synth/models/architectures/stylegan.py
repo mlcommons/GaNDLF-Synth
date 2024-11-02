@@ -422,9 +422,12 @@ class StyleGanDiscriminator(nn.Module):
         Computes the minibatch standard deviation of the input tensor and concatenates it
         to the input tensor.
         """
-        batch_statistics = (
-            torch.std(x, dim=0).mean().repeat(x.shape[0], 1, x.shape[2], x.shape[3])
+        repeat_shape = (
+            (x.shape[0], 1, x.shape[2], x.shape[3])
+            if x.ndim == 4
+            else (x.shape[0], 1, x.shape[2], x.shape[3], x.shape[4])
         )
+        batch_statistics = torch.std(x, dim=0).mean().repeat(repeat_shape)
         return torch.cat([x, batch_statistics], dim=1)
 
     def forward(self, x: torch.Tensor, alpha: float, steps: int) -> torch.Tensor:
