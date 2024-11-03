@@ -9,7 +9,7 @@ from gandlf_synth.models.architectures.base_model import ModelBase
 from gandlf_synth.models.architectures.stylegan import StyleGan
 from gandlf_synth.models.modules.module_abc import SynthesisModule
 from gandlf_synth.models.modules.module_abc import SynthesisModule
-from torchio.transforms import Resample
+from torchio.transforms import Resize, Compose
 from gandlf_synth.optimizers import get_optimizer
 from gandlf_synth.losses import get_loss
 from gandlf_synth.schedulers import get_scheduler
@@ -28,7 +28,6 @@ class UnlabeledStyleGANModule(SynthesisModule):
         self.progressive_epochs = self.model_config.architecture["progressive_epochs"]
         self.current_epoch_in_progressive_epoch = 0
         self.current_step = 0
-        self.current_resize_transform = self._determine_current_resize_transform()
 
     def _initialize_model(self) -> ModelBase:
         return StyleGan(self.model_config)
@@ -59,7 +58,6 @@ class UnlabeledStyleGANModule(SynthesisModule):
                 disc_optimizer, schedulers_config["discriminator"]
             )
             gen_scheduler = get_scheduler(gen_optimizer, schedulers_config["generator"])
-        # case when the same scheduler is used for both optimizers
         else:
             disc_scheduler = get_scheduler(disc_optimizer, schedulers_config)
             gen_scheduler = get_scheduler(gen_optimizer, schedulers_config)
@@ -93,7 +91,7 @@ class UnlabeledStyleGANModule(SynthesisModule):
                 f"Batch number {batch_idx} has only one sample. Skipping the batch as it will cause NaN values in the model's output."
             )
             return None
-        real_images = self._resize_to_current_step_demands(real_images)
+
         gardient_accumulation_steps = self.model_config.accumulate_grad_batches
         gradient_clip_val = self.model_config.gradient_clip_val
         gradient_clip_algorithm = self.model_config.gradient_clip_algorithm
@@ -170,8 +168,6 @@ class UnlabeledStyleGANModule(SynthesisModule):
         if self.postprocessing_transforms is not None:
             for transform in self.postprocessing_transforms:
                 fake_images = transform(fake_images)
-        fake_images = (fake_images + 1) / 2
-
         return fake_images
 
     def forward(
@@ -201,6 +197,12 @@ class UnlabeledStyleGANModule(SynthesisModule):
                 )
         fake_images = self.model.generator(latent_vector, alpha, current_step)
         return fake_images
+
+    def on_train_start(self):
+        assert self.trainer.max_epochs == sum(
+            self.progressive_epochs
+        ), f"Total number of epochs in the progressive training should be equal to the number of epochs in the trainer, but got {self.trainer.max_epochs} epochs in the trainer and {sum(self.progressive_epochs)} epochs in the progressive training."
+        self._set_current_resize_transform()
 
     def on_train_epoch_end(self) -> None:
         self._epoch_log(self.train_loss_list)
@@ -257,6 +259,7 @@ class UnlabeledStyleGANModule(SynthesisModule):
 
     def _generate_fixed_latent_vector(self, batch_size: int) -> torch.Tensor:
         current_rng_state = torch.get_rng_state()
+        torch.manual_seed(self.model_config.fixed_latent_vector_seed)
         latent_vector = self._generate_latent_vector(batch_size)
         torch.set_rng_state(current_rng_state)
         return latent_vector
@@ -325,31 +328,63 @@ class UnlabeledStyleGANModule(SynthesisModule):
         if self.current_epoch_in_progressive_epoch >= current_progressive_epochs:
             self.current_epoch_in_progressive_epoch = 0
             self.current_step += 1
-            self.current_resize_transform = self._determine_current_resize_transform()
+            self._set_current_resize_transform()
 
-    def _resize_to_current_step_demands(self, images: torch.Tensor) -> torch.Tensor:
-        images = images.cpu()
-        if self.model_config.n_dimensions == 2:
-            return torch.stack(
-                [
-                    self.current_resize_transform(image.unsqueeze(-1)).squeeze(-1)
-                    for image in images
-                ]
-            ).to(self.device)
-        elif self.model_config.n_dimensions == 3:
-            return torch.stack(
-                [self.current_resize_transform(image) for image in images]
-            ).to(self.device)
+    def _set_current_resize_transform(self):
+        """
+        Sets the resize transform in the dataloader to match the current step requirements.
+        Looks for the existing resize transform in the dataset's transforms and replaces it
+        with the new one if it exists. If it doesn't, it adds the new resize transform to the
+        existing transforms at the end.
+        """
+        current_resize_transform = self._determine_current_resize_transform()
+        dataset = self.trainer.train_dataloader.dataset
+        current_transforms = (
+            list(dataset.transforms) if dataset.transforms is not None else []
+        )
+        if any(isinstance(transform, Resize) for transform in current_transforms):
+            current_transforms = (
+                self._replace_existing_resize_transform_in_existing_transforms(
+                    current_transforms, current_resize_transform
+                )
+            )
+        else:
+            current_transforms = self._add_resize_transform_to_existing_transforms(
+                current_transforms, current_resize_transform
+            )
+        dataset.transforms = Compose(current_transforms)
 
-    def _determine_current_resize_transform(self) -> Resample:
-        return Resample(self._determine_resampling_values())
+    @staticmethod
+    def _replace_existing_resize_transform_in_existing_transforms(
+        current_transforms: List, new_resize_transform: Resize
+    ):
+        for i, transform in enumerate(current_transforms):
+            if isinstance(transform, Resize):
+                current_transforms[i] = new_resize_transform
+                return current_transforms
 
-    def _determine_resampling_values(self) -> List[int]:
-        required_width_height_size = self._determine_current_width_height()
-        original_size = self.model_config.tensor_shape[1]
-        resampling_value = original_size // required_width_height_size
-        return [resampling_value, resampling_value, resampling_value]
+    @staticmethod
+    def _add_resize_transform_to_existing_transforms(
+        current_transforms: List, new_resize_transform: Resize
+    ):
+        current_transforms.append(new_resize_transform)
+        return current_transforms
 
-    def _determine_current_width_height(self) -> int:
-        required_width_height_size = 4 * 2**self.current_step
-        return required_width_height_size
+    def _determine_current_resize_transform(self) -> Resize:
+        return Resize(self._determine_required_spatial_shape())
+
+    def _determine_required_spatial_shape(self) -> List[int]:
+        required_spatial_size = self._determine_current_spatial_size()
+        spatial_size = [required_spatial_size, required_spatial_size]
+        last_spatial_size = (
+            1 if self.model_config.n_dimensions == 2 else required_spatial_size
+        )
+        spatial_size.append(last_spatial_size)
+        return spatial_size
+
+    def _determine_current_spatial_size(self) -> int:
+        return (
+            self.model_config.architecture["progressive_size_starting_value"]
+            * self.model_config.architecture["progressive_size_growth_factor"]
+            ** self.current_step
+        )

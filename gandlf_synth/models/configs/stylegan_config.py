@@ -25,6 +25,9 @@ class UnlabeledStyleGANConfig(AbstractModelConfig):
             model_config["default_forward_step"]
             <= len(model_config["architecture"]["progressive_epochs"]) - 1
         ), "Default forward step must be less than or equal to the number of progressive epochs - 1."
+        assert (
+            model_config["architecture"]["progressive_layers_scaling_factors"][0] == 1
+        ), "First element of `progressive_layers_scaling_factors` must be 1."
 
     @staticmethod
     def _prepare_default_model_params() -> dict:
@@ -34,6 +37,11 @@ class UnlabeledStyleGANConfig(AbstractModelConfig):
             "n_fixed_images_to_generate": 8,  # How many images to generate at the end of each training epochs
             "save_eval_images_every_n_epochs": -1,  # Save evaluation images every n epochs, < 0 means never
             "default_forward_step": 1,  # Default step to use for forward pass
+            "tesnor_shape": [
+                1,
+                1,
+                1,
+            ],  # Shape of the input tensor - this is ignored in Stylegan
         }
 
     @staticmethod
@@ -45,6 +53,8 @@ class UnlabeledStyleGANConfig(AbstractModelConfig):
             "alpha": 1e-7,
             "gradient_penalty_weight": 10,
             "critic_squared_loss_weight": 0.001,
+            "progressive_size_starting_value": 4,
+            "progressive_size_growth_factor": 2,
             "progressive_layers_scaling_factors": [
                 1,
                 1,
