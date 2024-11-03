@@ -7,10 +7,6 @@ from torchvision.utils import save_image
 from gandlf_synth.models.architectures.base_model import ModelBase
 from gandlf_synth.models.architectures.dcgan import DCGAN
 from gandlf_synth.models.modules.module_abc import SynthesisModule
-from gandlf_synth.utils.generators import (
-    generate_latent_vector,
-    get_fixed_latent_vector,
-)
 from gandlf_synth.optimizers import get_optimizer
 from gandlf_synth.losses import get_loss
 from gandlf_synth.schedulers import get_scheduler
@@ -36,12 +32,7 @@ class UnlabeledDCGANModule(SynthesisModule):
         gradient_clip_algorithm = self.model_config.gradient_clip_algorithm
 
         batch_size = real_images.shape[0]
-        latent_vector = generate_latent_vector(
-            batch_size,
-            self.model_config.architecture["latent_vector_size"],
-            self.model_config.n_dimensions,
-            self.device,
-        ).type_as(real_images)
+        latent_vector = self._generate_latent_vector(batch_size).type_as(real_images)
         loss_disc, loss_gen = self.losses["disc_loss"], self.losses["gen_loss"]
         optimizer_disc, optimizer_gen = self.optimizers()
 
@@ -111,12 +102,7 @@ class UnlabeledDCGANModule(SynthesisModule):
 
     def predict_step(self, batch, batch_dx) -> torch.Tensor:
         n_images_to_generate = len(batch)
-        latent_vector = generate_latent_vector(
-            n_images_to_generate,
-            self.model_config.architecture["latent_vector_size"],
-            self.model_config.n_dimensions,
-            self.device,
-        )
+        latent_vector = self._generate_latent_vector(n_images_to_generate)
         fake_images = self.model.generator(latent_vector)
         if self.postprocessing_transforms is not None:
             for transform in self.postprocessing_transforms:
@@ -194,21 +180,30 @@ class UnlabeledDCGANModule(SynthesisModule):
 
         return [disc_optimizer, gen_optimizer]
 
+    def _generate_latent_vector(self, batch_size: int) -> torch.Tensor:
+        latent_vector = torch.randn(
+            (batch_size, self.model_config.architecture["latent_vector_size"], 1, 1),
+            device=self.device,
+        )
+        if self.model_config.n_dimensions == 3:
+            latent_vector = latent_vector.unsqueeze(-1)
+        return latent_vector
+
+    def _generate_fixed_latent_vector(self, batch_size: int) -> torch.Tensor:
+        current_rng_state = torch.get_rng_state()
+        torch.manual_seed(self.model_config.fixed_latent_vector_seed)
+        latent_vector = self._generate_latent_vector(batch_size)
+        torch.set_rng_state(current_rng_state)
+        return latent_vector
+
     def _generate_image_set_from_fixed_vector(
         self, n_images_to_generate
     ) -> torch.Tensor:
-        fixed_latent_vector = get_fixed_latent_vector(
-            n_images_to_generate,
-            self.model_config.architecture["latent_vector_size"],
-            self.model_config.n_dimensions,
-            self.device,
-            self.model_config.fixed_latent_vector_seed,
-        )
+        fixed_latent_vector = self._generate_fixed_latent_vector(n_images_to_generate)
         fake_images = self.model.generator(fixed_latent_vector)
         return fake_images
 
-    # TODO can we make it nicer? It's a bit of a mess, plus maybe saving can be
-    # done in parallel?
+    # TODO this should be extracted in general to a separate class perhaps
     def on_train_epoch_end(self) -> None:
         self._epoch_log(self.train_loss_list)
 
