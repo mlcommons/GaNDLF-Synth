@@ -28,6 +28,9 @@ class UnlabeledStyleGANModule(SynthesisModule):
         self.progressive_epochs = self.model_config.architecture["progressive_epochs"]
         self.current_epoch_in_progressive_epoch = 0
         self.current_step = 0
+        warn(
+            "WARNING: Progressive training in StyleGAN requires gradual resize of the images. The module will automatically resize the images in the dataloader to match the current step requirements. It may lead to distortion and degradation of the objects in the image if used on medical data. "
+        )
 
     def _initialize_model(self) -> ModelBase:
         return StyleGan(self.model_config)
