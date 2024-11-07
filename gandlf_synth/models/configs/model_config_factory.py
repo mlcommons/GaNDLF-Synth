@@ -2,6 +2,7 @@ from gandlf_synth.models.configs.config_abc import AbstractModelConfig
 from gandlf_synth.models.configs.dcgan_config import UnlabeledDCGANConfig
 from gandlf_synth.models.configs.vqvae_config import VQVAEConfig
 from gandlf_synth.models.configs.ddpm_config import DDPMConfig
+from gandlf_synth.models.configs.stylegan_config import UnlabeledStyleGANConfig
 from typing import Type
 
 
@@ -10,6 +11,7 @@ class ModelConfigFactory:
         "unlabeled_dcgan": UnlabeledDCGANConfig,
         "unlabeled_vqvae": VQVAEConfig,
         "unlabeled_ddpm": DDPMConfig,
+        "unlabeled_stylegan": UnlabeledStyleGANConfig,
     }
 
     @staticmethod

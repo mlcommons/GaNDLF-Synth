@@ -1,0 +1,117 @@
+data_augmentation: {}
+data_postprocessing: {}
+# For stylegan, all resizing operations defined in preprocessing will be 
+# ignored and done automatically to accomodate for the requirements for
+# the progressive training stage. The resizing operations defined here are 
+# going to be ignored.
+data_preprocessing:
+  test:
+    resize:
+    - 64
+    - 64
+  train:
+    resize:
+    - 64
+    - 64
+  val:
+    resize:
+    - 64
+    - 64
+  inference:
+    resize:
+    - 64
+    - 64
+
+dataloader_config:
+  inference:
+    drop_last: false
+    num_workers: 0
+    pin_memory: false
+    shuffle: false
+  test:
+    drop_last: false
+    num_workers: 0
+    pin_memory: false
+    shuffle: false
+  train:
+    drop_last: false
+    num_workers: 0
+    pin_memory: false
+    shuffle: true
+  validation:
+    drop_last: false
+    num_workers: 0
+    pin_memory: false
+    shuffle: false
+
+model_config:
+  model_name: stylegan
+  architecture:
+    latent_vector_size: 512
+    # Progressive stylegan training starts with image size defined by field
+    # 'progressive_size_starting_value' and the is increased by the power of 
+    # `progressive_size_growth_factor` in each progressive step. Keep that
+    # in mind when choosing the values for these fields, as it determines
+    # the final size of the generated images.
+    progressive_size_starting_value: 4
+    progressive_size_growth_factor: 2
+    progressive_layers_scaling_factors: 
+      - 1
+      - 0.25
+    progressive_epochs: 
+      - 1
+      - 1
+
+  converter_type: soft
+  labeling_paradigm: unlabeled
+  losses:
+    discriminator:
+      name: plain_mean
+    generator:
+      name: plain_mean
+  n_channels: 2
+  n_dimensions: 2
+  norm_type: batch
+  optimizers:
+    discriminator:
+      betas:
+      - 0
+      - 0.99
+      lr: 0.001
+      name: adam
+      weight_decay: 0.0
+    generator:
+      betas:
+      - 0
+      - 0.99
+      lr: 0.001
+      name: adam
+      weight_decay: 0.0
+
+  schedulers:
+    discriminator:
+      type: triangle_modified
+      step_size: 2
+    generator:
+      type: triangle_modified
+      step_size: 2
+  # TENSOR SHAPE IS GOING TO BE IGNORED IN STYLEGAN - MUST BE SET FOR COMPATIBILITY
+  tensor_shape:
+  - 1890
+  - 2457
+  save_eval_images_every_n_epochs: 1
+  n_fixed_images_to_generate: 10
+  fixed_images_batch_size: 10
+  # A step from which the generation will start in inference mode by default
+  # For example, if the model was trained in 5 steps (image sizes 4, 8, 16, 32, 64)
+  # setting this value to 3 will generate images of size 32x32.
+  # Value not higher than length of progressive_epochs - 1
+  default_forward_step: 1 
+
+inference_parameters:
+  batch_size: 2
+  n_images_to_generate: 10
+modality: rad
+batch_size: 2
+num_epochs: 2
+save_model_every_n_epochs: 1

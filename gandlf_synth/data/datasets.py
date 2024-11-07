@@ -44,10 +44,8 @@ class SynthesisDataset(Dataset):
             for channel_column in channel_columns
         ]
         tio_scalar_image = tio.ScalarImage(channel_file_paths)
-
         if self.transforms:
             tio_scalar_image = self.transforms(tio_scalar_image)
-        # TODO think if this is valid
         image = tio_scalar_image.data.squeeze(-1).float()
         return image
 

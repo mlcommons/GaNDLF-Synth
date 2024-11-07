@@ -77,7 +77,7 @@ class UnlabeledDDPMModule(SynthesisModule):
 
         return generated_images
 
-    def _on_train_epoch_end(self, epoch: int) -> None:
+    def on_train_epoch_end(self) -> None:
         self._epoch_log(self.train_loss_list)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:

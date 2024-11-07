@@ -3,12 +3,15 @@ from copy import deepcopy
 from torch.nn import Module
 from torch.nn import MSELoss, L1Loss, CrossEntropyLoss, BCEWithLogitsLoss, BCELoss
 
+from gandlf_synth.losses.custom_losses import PlainMeanLoss
+
 global_losses_dict = {
     "cel": CrossEntropyLoss,
     "l1": L1Loss,
     "bce": BCELoss,
     "bcelogits": BCEWithLogitsLoss,
     "mse": MSELoss,
+    "plain_mean": PlainMeanLoss,
 }
 
 WEIGHT_KEYS = ["weight", "pos_weight"]
