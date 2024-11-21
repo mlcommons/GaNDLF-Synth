@@ -1,6 +1,6 @@
 ## Introduction
 
-The usual DL workflow consists of the following steps:
+To train generative DL models, the usual workflow consists of the following steps:
 
 1. Prepare the data
 2. Split data into training, validation, and testing
@@ -8,7 +8,7 @@ The usual DL workflow consists of the following steps:
 4. Train the model
 5. Perform inference
 
-GaNDLF-Synth supports all of these steps. Some of the steps are treated as optional due to the nature of the generation tasks. For example, sometimes you do not want to split the data into training, validation, and testing, but rather use all the data for training. GaNDLF-Synth provides the necessary tools to perform these tasks, using both custom features and the ones provided by GaNDLF. We describe all the functionalities in the following sections. For more details on the functionalities directly from GaNDLF, please refer to the [GaNDLF documentation](https://docs.mlcommons.org/GaNDLF).
+GaNDLF-Synth supports all of these steps, but some are optional depending on the nature of the generation task. For example, sometimes it's preferred to avoid splitting the data, and instead use the whole dataset for training. GaNDLF-Synth provides the necessary tools to perform these tasks, using both custom features and the ones provided by GaNDLF. We describe all the functionalities in the following sections. For more details on the functionalities specific to GaNDLF, refer to the [GaNDLF documentation](https://docs.mlcommons.org/GaNDLF).
 
 ## Installation
 
@@ -17,7 +17,7 @@ Please follow the [installation instructions](./setup.md#installation) to instal
 ## Preparing the Data
 ## Constructing the Data CSV
 
-This application can leverage multiple channels/modalities for training while using a multi-class segmentation file. The expected format is shown in example CSVs in [samples directory](https://github.com/mlcommons/GaNDLF-Synth/blob/main/samples) for both labeled and unlabeled data. The CSV file needs to be structured with the following header format (which shows a CSV with `N` subjects, each having `X` channels/modalities that need to be processed):
+GaNDLF-Synth can leverage multiple channels/modalities for training using a multi-class segmentation file. The expected format is shown in example CSVs in [samples directory](https://github.com/mlcommons/GaNDLF-Synth/blob/main/samples) for both labeled and unlabeled data. The CSV file needs to be structured with the following header format (which shows a CSV with `N` subjects, each having `X` channels/modalities that need to be processed):
 
 #### Unlabeled Data
 ```csv
@@ -43,11 +43,11 @@ $ROOT-PATH-TO-DATA-FOLDER/$CLASS-FOLDER-NAME-2/3/t2w.nii.gz,$ROOT-PATH-TO-DATA-F
 
 **Notes:**
 
-- For labeled data, the CSV has additonal columns for the labels assigned to given set of channels. It also has a column for the label mapping, showing the class name assigned to the label value.
+- For labeled data, the CSV needs to have additonal columns to include the labels corresponding to a given set of channels. It also needs a column for the label mapping, showing the class name assigned to the label value.
 
 ### Using the `gandlf-synth construct-csv` command
 
-To make the process of creating the CSV easier, we have provided a `gandlf-synth construct-csv` command. The data has to be arranged in different formats, depeinding on labeling paradigm. Modality names are used as examples.
+To make the process of creating the CSV easier, we have provided a `gandlf-synth construct-csv` command. The data has to be arranged in different formats, depending on the labeling paradigm. Modality names are used as examples.
 
 #### Unlabeled Data
 
@@ -120,8 +120,7 @@ $DATA_DIRECTORY
 
 #### Per Patient Labeled Data
 
-The structure is similar to the unlabeled data, the labels are assigned per patient. 
-
+The folder structure is the same as that of unlabeled data. In the csv, the labels are assigned per patient. 
 
 The following command shows how the script works:
 
