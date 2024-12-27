@@ -22,20 +22,22 @@ We are working on supporting containerized versions of GaNDLF-Synth, which will 
 
 ### Install PyTorch 
 
-GaNDLF-Synth primary computational foundation is built on PyTorch and PyTorch Lightning, and as such it supports all hardware types that PyTorch supports. Please install PyTorch for your hardware type before installing GaNDLF-Synth. The version to use can be found in the
-setup.py file in the root of the repository (requirements section).
+GaNDLF-Synth primary computational foundation is built on PyTorch and PyTorch Lightning, and as such it supports all hardware types that PyTorch supports. Please install PyTorch for your hardware type before installing GaNDLF-Synth. 
+
+The version to use needs to be analogous with the [GaNDLF version in the setup.py file](https://github.com/mlcommons/GaNDLF-Synth/blob/main/setup.py#L36). For example, for a requirement of `gandlf==0.1.1`, the [PyTorch requirement is 2.3.1](https://github.com/mlcommons/GaNDLF/blob/0.1.1/setup.py#L40).
+
 See the [PyTorch installation instructions](https://pytorch.org/get-started/previous-versions/) for more details. 
 
 First, instantiate your environment
 ```bash
-(base) $> conda create -n venv_gandlf python=3.9 -y
+(base) $> conda create -n venv_gandlf python=3.11 -y
 (base) $> conda activate venv_gandlf
 (venv_gandlf) $> ### subsequent commands go here
 ```
 
 You may install PyTorch to be compatible with CUDA, ROCm, or CPU-only. An exhaustive list of PyTorch installations for the specific version compatible with GaNDLF can be found here: https://pytorch.org/get-started/previous-versions/#v231
-Use one of the following installation commands provided under the "Install PyTorch" section of the PyTorch website.
-Example - installing PyTorch 2.3.1 with CUDA 12.1:
+
+Use one of the following installation commands provided under the "Install PyTorch" section of the PyTorch website. The following example is for installing PyTorch 2.3.1 with CUDA 12.1:
 - CUDA 12.1
 ```bash
 (venv_gandlf) $> pip install torch==2.3.1 torchvision==0.18.1 torchaudio==2.3.1 --index-url https://download.pytorch.org/whl/cu121
