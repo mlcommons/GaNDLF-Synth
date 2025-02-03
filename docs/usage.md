@@ -158,7 +158,7 @@ You can use the following code snippet to run GaNDLF:
 
 ```bash
 # continue from previous shell
-(venv_gandlf) $> gandlf run \
+(venv_gandlf) $> gandlf-synth run \
   # -h, --help         Show help message and exit
   # -v, --version      Show program's version number and exit.
   -c ./experiment_0/model.yaml \ # model configuration - needs to be a valid YAML (check syntax using https://yamlchecker.com/)

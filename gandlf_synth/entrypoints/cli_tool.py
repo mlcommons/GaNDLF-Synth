@@ -15,7 +15,7 @@ def gandlf_synth(ctx):
     ctx.ensure_object(dict)
 
 
-# registers subcommands: `gandlf anonymizer`, `gandlf run`, etc.
+# registers subcommands: `gandlf anonymizer`, `gandlf-synth run`, etc.
 for command_name, command in cli_subcommands.items():
     gandlf_synth.add_command(command, command_name)
 
