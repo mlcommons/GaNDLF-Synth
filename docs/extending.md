@@ -18,7 +18,7 @@ Before starting to work on the code-level on GaNDLF, please follow the [instruct
 
 ## Overall Architecture
 
-- Command-line parsing: [gandlf run](https://github.com/mlcommons/GaNDLF-Synth/blob/main/gandlf_synth/entrypoints/run.py)
+- Command-line parsing: [gandlf-synth run](https://github.com/mlcommons/GaNDLF-Synth/blob/main/gandlf_synth/entrypoints/run.py)
 - [Config Manager](https://github.com/mlcommons/GaNDLF-Synth/blob/main/gandlf_synth/config_manager.py): 
     - Handles configuration parsing
     - Provides configuration to other modules
