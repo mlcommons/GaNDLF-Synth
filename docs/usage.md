@@ -151,19 +151,19 @@ Adapting GaNDLF to your needs boils down to modifying a YAML-based configuration
 
 
 
-## Running GaNDLF (Training/Inference)
+## Running GaNDLF-Synth (Training/Inference)
 
 You can use the following code snippet to run GaNDLF:
 
 ```bash
 # continue from previous shell
-(venv_gandlf) $> gandlf run \
+(venv_gandlf) $> gandlf-synth run \
   # -h, --help         Show help message and exit
   # -v, --version      Show program's version number and exit.
   -c ./experiment_0/model.yaml \ # model configuration - needs to be a valid YAML (check syntax using https://yamlchecker.com/)
   -dt ./experiment_0/train.csv \ # main data CSV used for training (or inference if performing image-to-image reconstruction)
   -m-dir ./experiment_0/model_dir/ \ # model directory where the output of the training will be stored, created if not present
-  --t \ # enable training (if not enabled, inference is performed)
+  -t \ # enable training (if not enabled, inference is performed)
   # -v-csv ./experiment_0/val.csv \ # [optional] validation data CSV (if the model performs validation step)
   # -t-csv ./experiment_0/test.csv \ # [optional] testing data CSV (if the model performs testing step)
   # -vr 0.1 \ # [optional] ratio of validation data to extract from the training data CSV. If -v-csv flag is set, this is ignored
