@@ -25,7 +25,7 @@ Model configuration is expected to be in the following format:
 ```yaml
 model_config:
     model_name:  # Name of the model to use
-    labeling_paradigm:  # Labeling paradigm for the model, either 'unlabeled', 'patient', or 'custom'. Read further down for clarification on these three.
+    labeling_paradigm:  # Labeling paradigm for the model, either 'unlabeled', 'patient', or 'custom'. Read in the "Custom-Labels" section for clarification on these three.
     architecture:  # Architecture of the model, customizing given model. Specifics are defined in the config of the given model.
     losses: # Loss functions to use (see below).
         - name:  # Name of the loss function
