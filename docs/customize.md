@@ -25,7 +25,7 @@ Model configuration is expected to be in the following format:
 ```yaml
 model_config:
     model_name:  # Name of the model to use
-    labeling_paradigm:  # Labeling paradigm for the model, either 'unlabeled', 'patient', or 'custom'
+    labeling_paradigm:  # Labeling paradigm for the model, either 'unlabeled', 'patient', or 'custom'. Read in the "Custom-Labels" section for clarification on these three.
     architecture:  # Architecture of the model, customizing given model. Specifics are defined in the config of the given model.
     losses: # Loss functions to use (see below).
         - name:  # Name of the loss function
@@ -53,6 +53,50 @@ model_config:
     # This model config can support additional parameters that are specific to the model, for example:
     - save_eval_images_every_n_epochs:  # Save evaluation images every n epochs, useful to assess training progress of generative models. Implemented in i.e. DCGAN.
 ```
+Regarding the "labeling_paradigm"
+### Custom Labels
+
+Custom labels are defined based on the folder structure specified by the user. For example, you can create directories such as `0`, `1`, `2`, etc., where each number represents a distinct class. These classes are arbitrary and can be assigned as per the user's requirements. Inside each class folder, you should organize **patient-specific subfolders** containing the corresponding data.
+
+**Example Structure:**
+```plaintext
+/data
+  ├── 0
+  │    ├── patient_001
+  │    └── patient_002
+  ├── 1
+  │    ├── patient_003
+  │    └── patient_004
+  └── 2
+       ├── patient_005
+       └── patient_006
+```
+### Patient-Level Labels
+
+For patient-level labels, the folder structure consists of a main directory where each subfolder represents a specific patient. In this setup, each patient is treated as a separate class, similar to how labeling is handled in GANDLF.
+
+**Example Structure:**
+```plaintext
+/data
+  ├── patient_001
+  ├── patient_002
+  ├── patient_003
+  └── patient_004
+```
+
+### Unlabeled Data
+
+For unlabeled data, you are required to maintain a patient-wise folder structure, similar to the patient-level labeling setup. However, in this case, class labels are ignored. The data is simply loaded without any label association.
+
+**Example Structure:**
+```plaintext
+/data
+  ├── patient_001
+  ├── patient_002
+  ├── patient_003
+  └── patient_004
+```
+
 
 ## Optimizers
 GaNDLF-Synth interfaces GaNDLF core framework for optimizers. See the [optimizers directory](https://github.com/mlcommons/GaNDLF/blob/master/GANDLF/optimizers/__init__.py) for available optimizers. They support optimizer-specific configurable parameters, interfacing [Pytorch Optimizers](https://pytorch.org/docs/stable/optim.html).
